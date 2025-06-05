@@ -43,8 +43,8 @@ SYM_CODE_START(_start)
 	.dword 0
 #else
 #if __riscv_xlen == 64
-	/* Image load offset(2MB) from start of RAM */
-	.dword 0x200000
+	/* Image load offset(2MB ?) from start of RAM */
+	.dword CONFIG_IMAGE_LOAD_OFFSET
 #else
 	/* Image load offset(4MB) from start of RAM */
 	.dword 0x400000
