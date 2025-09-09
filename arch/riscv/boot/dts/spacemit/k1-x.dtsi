@@ -422,47 +422,46 @@
 		#size-cells = <2>;
 		ranges;
 
-		/* sram area, used for rcpu code & data & heap space */
-		rcpu_mem_0: mem@c0800000 {
-			reg = <0x0 0xc0800000 0x0 0x40000>;
-			da_base = <0x0>;
-			no-map;
-		};
-
 		/* rcpu's heap */
-		rcpu_mem_1: mem@30000000 {
-			reg = <0x0 0x30000000 0x0 0x200000>;
+		rcpu_mem_heap: rcpu_mem_heap@100000 {
+			reg = <0x0 0x100000 0x0 0x200000>;
+			da_base = <0x30000000>;
 			no-map;
 		};
 
 		/* vring0 */
-		vdev0vring0: vdev0vring0@30200000 {
-			reg = <0x0 0x30200000 0x0 0x3000>;
+		vdev0vring0: vdev0vring0@300000 {
+			reg = <0x0 0x300000 0x0 0x3000>;
+			da_base = <0x30200000>;
 			no-map;
 		};
 
 		/* vring1 */
-		vdev0vring1: vdev0vring1@30203000 {
-			reg = <0x0 0x30203000 0x0 0x3000>;
+		vdev0vring1: vdev0vring1@303000 {
+			reg = <0x0 0x303000 0x0 0x3000>;
+			da_base = <0x30203000>;
 			no-map;
 		};
 
 		/* share memory buffer */
-		vdev0buffer: vdev0buffer@30206000 {
+		vdev0buffer: vdev0buffer@306000 {
 			compatible = "shared-dma-pool";
-			reg = <0x0 0x30206000 0x0 0xf6000>;
+			reg = <0x0 0x306000 0x0 0xf6000>;
+			da_base = <0x30206000>;
 			no-map;
 		};
 
 		/* the resource table */
-		rsc_table: rsc_table@302fc000 {
-			reg = <0x0 0x302fc000 0x0 0x4000>;
+		rsc_table: rsc_table@3fc000 {
+			reg = <0x0 0x3fc000 0x0 0x4000>;
+			da_base = <0x302fc000>;
 			no-map;
 		};
 
-		/* memory snapshots of rcpu when rcpu poweroff */
-		rcpu_mem_snapshots: rcpu_mem_snapshots@30300000 {
-			reg = <0x0 0x30300000 0x0 0x40000>;
+		/* used for rcpu code & data & bss space */
+		rcpu_mem_0: rcpu_mem_0@400000 {
+			reg = <0x0 0x400000 0x0 0x200000>;
+			da_base = <0x30300000>;
 			no-map;
 		};
 	};
@@ -535,6 +534,16 @@
 			#size-cells = <2>;
 			dma-ranges = <0x0 0x00000000 0x0 0x00000000 0x0 0x80000000>,
 				     <0x0 0x80000000 0x1 0x00000000 0x0 0x80000000>;
+			#interconnect-cells = <0>;
+			status = "okay";
+		};
+
+		/* for rcpu vqueue buffer . */
+		dram_range8: dram_range@8 {
+			compatible = "spacemit-dram-bus";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			dma-ranges = <0x0 0x30200000 0x0 0x300000 0x0 0xfc000>;
 			#interconnect-cells = <0>;
 			status = "okay";
 		};
@@ -966,14 +975,21 @@
 			compatible = "spacemit,k1-x-rproc";
 			reg =  <0 0xc088c000 0 0x1000>,
 				<0 0xc0880000 0 0x200>;
-			ddr-remap-base = <0x30000000>;
-			esos-entry-point = <0x114>;
-			clocks = <&ccu CLK_AUDIO>;
+			ddr-remap-base = <0x100000>;
+			esos-entry-point = <0x30300114>;
+			clocks = <&ccu CLK_AUDIO>/*, <&ccu CLK_AUDIO_APB> */;
+			// clock-names = "core", "apb";
 			clock-names = "core";
+			apb-clk-rate = <122880000>;
 			resets = <&reset RESET_AUDIO_SYS>;
 			reset-names = "core_reset";
 			firmware-name = "esos.elf";
+			mboxes = <&mailbox 0>, <&mailbox 1>;
+			mbox-names = "vq0", "vq1";
 			power-domains = <&power K1X_PMU_AUD_PWR_DOMAIN>;
+			interconnects = <&dram_range8>;
+			interconnect-names = "dma-mem";
+			memory-region = <&rcpu_mem_0>, <&rcpu_mem_heap>, <&vdev0vring0>, <&vdev0vring1>, <&vdev0buffer>, <&rsc_table>;
 			status = "okay";
 		};
 

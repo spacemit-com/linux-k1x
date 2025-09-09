@@ -250,7 +250,12 @@ static u64 rproc_virtio_get_features(struct virtio_device *vdev)
 
 	rsc = (void *)rvdev->rproc->table_ptr + rvdev->rsc_offset;
 
+
+#ifdef CONFIG_SOC_SPACEMIT_K1X
+	return (u64)rsc->dfeatures | ((u64)rsc->gfeatures << 32);
+#else
 	return rsc->dfeatures;
+#endif
 }
 
 static void rproc_transport_features(struct virtio_device *vdev)
@@ -276,8 +281,9 @@ static int rproc_virtio_finalize_features(struct virtio_device *vdev)
 	/* Give virtio_rproc a chance to accept features. */
 	rproc_transport_features(vdev);
 
-	/* Make sure we don't have any features > 32 bits! */
+#ifndef CONFIG_SOC_SPACEMIT_K1X
 	BUG_ON((u32)vdev->features != vdev->features);
+#endif
 
 	/*
 	 * Remember the finalized features of our vdev, and provide it
