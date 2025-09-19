@@ -44,6 +44,7 @@
  * This driver supports the following PowerVR/IMG graphics cores from Imagination Technologies:
  *
  * * AXE-1-16M (found in Texas Instruments AM62)
+ * * BXS-4-64 MC1 (found in Texas Instruments J721S2/AM68)
  */
 
 /**
@@ -1387,7 +1388,6 @@ static struct drm_driver pvr_drm_driver = {
 
 	.name = PVR_DRIVER_NAME,
 	.desc = PVR_DRIVER_DESC,
-	.date = PVR_DRIVER_DATE,
 	.major = PVR_DRIVER_MAJOR,
 	.minor = PVR_DRIVER_MINOR,
 	.patchlevel = PVR_DRIVER_PATCHLEVEL,
@@ -1451,6 +1451,8 @@ err_watchdog_fini:
 err_context_fini:
 	pvr_context_device_fini(pvr_dev);
 
+	pvr_power_domains_fini(pvr_dev);
+
 	return err;
 }
 
@@ -1471,9 +1473,17 @@ static void pvr_remove(struct platform_device *plat_dev)
 	pvr_watchdog_fini(pvr_dev);
 	pvr_queue_device_fini(pvr_dev);
 	pvr_context_device_fini(pvr_dev);
+	pvr_power_domains_fini(pvr_dev);
 }
 
 static const struct of_device_id dt_match[] = {
+	{ .compatible = "img,img-rogue", .data = NULL },
+
+	/*
+	 * This legacy compatible string was introduced early on before the more generic
+	 * "img,img-rogue" was added. Keep it around here for compatibility, but never use
+	 * "img,img-axe" in new devicetrees.
+	 */
 	{ .compatible = "img,img-axe", .data = NULL },
 	{}
 };
