@@ -6,8 +6,6 @@
 #include "k1-x.dtsi"
 #include "k1-x-efuse.dtsi"
 #include "k1-x_pinctrl.dtsi"
-#include "lcd/lcd_lt9711_dp_1920x1080.dtsi"
-#include "k1-x-lcd.dtsi"
 #include "k1-x-hdmi.dtsi"
 #include "k1-x_opp_table.dtsi"
 #include "k1-x_thermal_cooling.dtsi"
@@ -272,52 +270,6 @@
 	status = "okay";
 };
 
-&pwm14 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_pwm14_1>;
-	status = "disabled";
-};
-
-&dpu_online2_dsi {
-	memory-region = <&dpu_resv>;
-	spacemit-dpu-bitclk = <1000000000>;
-	spacemit-dpu-escclk = <76800000>;
-	dsi_1v2-supply = <&ldo_5>;
-	vin-supply-names = "dsi_1v2";
-	status = "okay";
-};
-
-&dsi2 {
-	force-attached = "lcd_lt9711_dp_1920x1080";
-	status = "okay";
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		port@0 {
-			reg = <0>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			dsi1_output: endpoint@1 {
-				reg = <1>;
-				remote-endpoint = <&lt9711_in>;
-			};
-		};
-	};
-
-	dp_panel: panel@0 {
-			status = "okay";
-			compatible = "spacemit,dp-panel";
-	};
-
-};
-
-&lcds {
-	status = "okay";
-};
-
 &dpu_online2_hdmi {
 	memory-region = <&dpu_resv>;
 	status = "okay";
@@ -382,29 +334,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c3_2>;
 	status = "disabled";
-};
-
-&i2c4 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_i2c4_2>;
-	clock-frequency = <100000>;
-	status = "okay";
-
-	lt9711_i2c@41 {
-		compatible = "lontium,lt9711";
-		reg = <0x41>;
-		status = "okay";
-
-		reset-gpio = <&gpio 50 0>;
-		enable-gpio = <&gpio 83 0>;
-
-		port {
-				lt9711_in: endpoint {
-					remote-endpoint = <&dsi1_output>;
-				};
-		};
-	};
-
 };
 
 &i2c6 {

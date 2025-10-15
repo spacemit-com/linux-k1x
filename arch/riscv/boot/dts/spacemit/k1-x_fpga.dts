@@ -4,9 +4,7 @@
 /dts-v1/;
 
 #include "k1-x.dtsi"
-#include "lcd/lcd_gc9503v_mipi.dtsi"
 #include "k1-x-hdmi.dtsi"
-#include "k1-x-lcd.dtsi"
 
 / {
 	model = "spacemit k1-x fpga board";
@@ -55,10 +53,6 @@
 		};
 	};
 
-	lcds: lcds {
-		status = "ok";
-	};
-
 	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x00000000 0x0 0x80000000>;
@@ -95,28 +89,6 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-};
-
-&dpu_online2_dsi {
-	memory-region = <&dpu_resv>;
-	status = "okay";
-};
-
-
-&dsi2 {
-	status = "okay";
-
-	panel2: panel2@0 {
-		status = "ok";
-		compatible = "spacemit,mipi-panel2";
-		reg = <0>;
-
-		gpios-bl = <16>;
-		gpios-reset = <17>;
-		gpios-dc = <18>;
-		id = <2>;
-		force-attached = "lcd_gc9503v_mipi";
-	};
 };
 
 &sdhci0 {

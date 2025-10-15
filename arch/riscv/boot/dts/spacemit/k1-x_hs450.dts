@@ -6,8 +6,6 @@
 #include "k1-x.dtsi"
 #include "k1-x-efuse.dtsi"
 #include "k1-x_pinctrl.dtsi"
-#include "lcd/lcd_lt8911_edp_1920x1200.dtsi"
-#include "k1-x-lcd.dtsi"
 #include "k1-x-hdmi.dtsi"
 #include "k1-x_opp_table.dtsi"
 #include "k1-x_thermal_cooling.dtsi"
@@ -161,51 +159,6 @@
 	status = "okay";
 };
 
-&pwm14 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_pwm14_1>;
-	status = "okay";
-};
-
-&dpu_online2_dsi {
-	memory-region = <&dpu_resv>;
-	spacemit-dpu-bitclk = <1000000000>;
-	dsi_1v2-supply = <&ldo_17>;
-	vin-supply-names = "dsi_1v2";
-	status = "okay";
-};
-
-&dsi2 {
-	status = "okay";
-	force-attached = "lcd_lt8911_edp_1920x1200";
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		port@0 {
-			reg = <0>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			dsi1_output: endpoint@1 {
-				reg = <1>;
-				remote-endpoint = <&lt8911exb_in>;
-			};
-		};
-	};
-
-	edp_panel: panel@0 {
-			status = "ok";
-			// compatible = "spacemit,edp-panel";
-	};
-
-};
-
-&lcds {
-	status = "okay";
-};
-
 &dpu_online2_hdmi {
 	memory-region = <&dpu_resv>;
 	status = "disabled";
@@ -267,30 +220,6 @@
 		interrupts = <62 2>;
 		status = "okay";
 
-	};
-};
-
-&i2c6 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_i2c6_2>;
-	clock-frequency = <100000>;
-	status = "okay";
-
-	lt8911exb_i2c@29 {
-		compatible = "lontium,lt8911exb";
-		reg = <0x29>;
-
-		reset-gpio = <&gpio 81 0>;
-		enable-gpio = <&gpio 83 0>;
-		bl-gpio = <&gpio 82 0>;
-
-		status = "okay";
-
-		port {
-				lt8911exb_in: endpoint {
-					remote-endpoint = <&dsi1_output>;
-				};
-			};
 	};
 };
 
