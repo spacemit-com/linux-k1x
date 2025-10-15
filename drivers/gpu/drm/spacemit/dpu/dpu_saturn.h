@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2023 Spacemit Co., Ltd.
  *
@@ -11,11 +11,11 @@
 #include "../spacemit_dpu.h"
 
 #ifndef min
-#define min(x, y) (((x)<(y))?(x):(y))
+#define min(x, y) (((x) < (y)) ? (x) : (y))
 #endif
 
 #ifndef max
-#define max(x, y) (((x)>(y))?(x):(y))
+#define max(x, y) (((x) > (y)) ? (x) : (y))
 #endif
 
 #ifndef clip
@@ -25,7 +25,6 @@
 /* Supported variants of the hardware */
 enum {
 	SATURN_HDMI = 0,
-	SATURN_LE,
 	/* keep the next entry last */
 	DP_MAX_DEVICES
 };

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2023 Spacemit Co., Ltd.
  *
@@ -34,6 +34,10 @@
 #define DPU_INT_OVERRUN		BIT(3)
 #define DPU_INT_WBDONE		BIT(4)
 
+#define CFG_CPN_EN			BIT(1)
+#define CFG_VPN_EN			BIT(0)
+#define SPARE_CFG_OFFSET	0x0018
+
 #define N_SCALER_MAX			5
 #define N_DMA_CHANNEL_MAX		12
 #define N_DMA_LAYER_MAX			16
@@ -53,7 +57,7 @@
 #define DPU_MARGIN_QOS_REQ		900000ULL
 #define DPU_MAX_QOS_REQ			(3900000ULL - DPU_MARGIN_QOS_REQ)
 #define RDMA_INVALID_ID			(~0)
-#define SCALER_INVALID_ID		(u8)(~0)
+#define SCALER_INVALID_ID		((u8)(~0))
 
 #define DPU_STOP_TIMEOUT		(2000)
 #define DPU_CTRL_MAX_TIMING_INTER1	(0xf)
@@ -116,6 +120,12 @@ struct dpu_clk_context {
 	struct clk *hmclk;
 };
 
+enum spacemit_dpu_work_mode {
+	SPACEMIT_DPU_MODE_VIDEO = 0,
+	SPACEMIT_DPU_MODE_CMD = 1,
+	SPACEMIT_DPU_MODE_MAX
+};
+
 struct spacemit_dpu {
 	struct device *dev;
 	struct drm_crtc crtc;
@@ -144,15 +154,12 @@ struct spacemit_dpu {
 	struct drm_property *color_matrix_property;
 	uint32_t bitclk;
 	uint32_t escclk;
-	struct reset_control *dsi_reset;
-	struct reset_control *mclk_reset;
-	struct reset_control *lcd_reset;
-	struct reset_control *esc_reset;
+
 	struct reset_control *hdmi_reset;
-	struct gpio_desc *enable_gpio;
+	unsigned int work_mode;
 
 #ifdef CONFIG_SPACEMIT_DEBUG
-	bool (*is_dpu_running)(struct spacemit_dpu* dpu);
+	bool (*is_dpu_running)(struct spacemit_dpu *dpu);
 	struct notifier_block nb;
 	bool is_working;
 #endif
@@ -186,7 +193,6 @@ struct dpu_core_ops {
 				 struct spacemit_dpu_rdma *rdmas);
 	int (*calc_plane_mclk_bw)(struct drm_plane *plane, \
 			struct drm_plane_state *state);
-	void (*wb_config)(struct spacemit_dpu *dpu);
 	int (*update_clk)(struct spacemit_dpu *dpu, uint64_t mclk);
 	int (*update_bw)(struct spacemit_dpu *dpu, uint64_t bw);
 };
@@ -199,7 +205,6 @@ struct dpu_core_ops {
 int spacemit_dpu_run(struct drm_crtc *crtc,
 		struct drm_crtc_state *old_state);
 int spacemit_dpu_stop(struct spacemit_dpu *dpu);
-int spacemit_dpu_wb_config(struct spacemit_dpu *dpu);
 
 struct spacemit_plane {
 	struct drm_plane plane;
@@ -208,6 +213,7 @@ struct spacemit_plane {
 	struct drm_property *solid_color_property;
 	struct drm_property *hdr_coef_property;
 	struct drm_property *scale_coef_property;
+	int dev_id;
 	u32 hw_pid;
 };
 
@@ -229,17 +235,6 @@ struct spacemit_plane_state {
 	u32 fbcmem_size;
 	uint64_t mclk;	//DPU MCLK = MAX(Mclk, Aclk) of all planes
 	uint64_t bw;	//BandWidth = SUM(BW_single) * 1.08
-	bool is_crop;
-	u32 src_crop_x;
-	u32 src_crop_y;
-	u32 src_crop_w;
-	u32 src_crop_h;
-	u32 dst_crop_x;
-	u32 dst_crop_y;
-	u32 dst_crop_w;
-	u32 dst_crop_h;
-	u32 screen_width;
-	u32 screen_height;
 	struct dpu_mmu_tbl mmu_tbl;
 	struct cmdlist cl;
 	uint64_t afbc_effc;

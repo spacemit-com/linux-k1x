@@ -6,6 +6,7 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <linux/aperture.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_debugfs.h>
@@ -30,7 +31,7 @@
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
 
-static void spacemit_drm_atomic_commit_tail(struct drm_atomic_state *old_state)
+void spacemit_drm_atomic_commit_tail(struct drm_atomic_state *old_state)
 {
 	struct drm_device *dev = old_state->dev;
 
@@ -40,8 +41,6 @@ static void spacemit_drm_atomic_commit_tail(struct drm_atomic_state *old_state)
 
 	drm_atomic_helper_commit_planes(dev, old_state,
 					DRM_PLANE_COMMIT_ACTIVE_ONLY);
-
-	// spacemit_wb_atomic_commit(dev, old_state);
 
 	drm_atomic_helper_wait_for_flip_done(dev, old_state);
 
@@ -79,7 +78,8 @@ static void spacemit_drm_mode_config_init(struct drm_device *drm)
 #ifdef CONFIG_DEBUG_FS
 
 #define FRAMEBUFFER_DUMP_PATH "/tmp"
-static int spacemit_framebuffer_dump(struct drm_plane *plane) {
+static int spacemit_framebuffer_dump(struct drm_plane *plane)
+{
 	unsigned int buffer_size = 0;
 	int i, j;
 	void *mmu_tbl_vaddr = NULL;
@@ -187,6 +187,7 @@ static const struct file_operations spacemit_drm_fops = {
 	.compat_ioctl	= drm_compat_ioctl,
 	.poll			= drm_poll,
 	.read			= drm_read,
+	// .llseek		= noop_llseek,
 	.mmap		= spacemit_gem_mmap,
 	.fop_flags = FOP_UNSIGNED_OFFSET,
 };
@@ -201,6 +202,8 @@ static struct drm_driver spacemit_drm_drv = {
 					DRIVER_ATOMIC | DRIVER_HAVE_IRQ,
 	.fops = &spacemit_drm_fops,
 	.dumb_create = spacemit_gem_dumb_create,
+	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
+	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.gem_prime_import_sg_table = spacemit_gem_prime_import_sg_table,
 	DRM_FBDEV_DMA_DRIVER_OPS,
 #ifdef CONFIG_DEBUG_FS
@@ -222,7 +225,7 @@ static int spacemit_drm_bind(struct device *dev)
 
 	DRM_DEBUG("%s()\n", __func__);
 	/* Remove existing drivers that may own the framebuffer memory. */
-	err =aperture_remove_all_conflicting_devices(spacemit_drm_drv.name);
+	err = aperture_remove_all_conflicting_devices(spacemit_drm_drv.name);
 	if (err) {
 		DRM_ERROR("Failed to remove existing framebuffers - %d.\n", err);
 		return err;
@@ -267,7 +270,6 @@ static int spacemit_drm_bind(struct device *dev)
 	err = drm_dev_register(drm, 0);
 	if (err < 0)
 		goto err_kms_helper_poll_fini;
-
 	drm_client_setup(drm, NULL);
 
 	return 0;
@@ -315,7 +317,7 @@ static int compare_of(struct device *dev, void *data)
 	return dev->of_node == np;
 }
 
-static int spacemit_drm_of_component_probe(struct device *dev,
+int spacemit_drm_of_component_probe(struct device *dev,
 			   int (*compare_of)(struct device *, void *),
 			   const struct component_master_ops *m_ops)
 {
@@ -485,10 +487,6 @@ static const struct of_device_id drm_match_table[] = {
 		.compatible = "spacemit,saturn-hdmi",
 		.data = &spacemit_dp_devices[SATURN_HDMI],
 	},
-	{
-		.compatible = "spacemit,saturn-le",
-		.data = &spacemit_dp_devices[SATURN_LE],
-	},
 	{},
 
 };
@@ -508,21 +506,15 @@ static struct platform_driver spacemit_drm_driver = {
 static struct platform_driver * const spacemit_drm_drivers[] = {
 	&spacemit_drm_driver,
 	&spacemit_dpu_driver,
-	&spacemit_dsi_driver,
-	&spacemit_dphy_driver,
 };
 
 #ifdef MODULE
-extern int dsi_core_register(void);
 extern int dpu_core_register(void);
-extern int dphy_core_register(void);
 extern int display_class_init(void);
 void drm_core_register(void)
 {
 	display_class_init();
-	dsi_core_register();
 	dpu_core_register();
-	dphy_core_register();
 }
 #endif
 static int __init spacemit_drm_drivers_init(void)

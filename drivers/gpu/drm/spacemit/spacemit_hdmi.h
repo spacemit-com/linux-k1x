@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2023 Spacemit Co., Ltd.
  *
@@ -36,8 +36,7 @@ enum {
 	HDMI_SYNC_POL_NEG,
 };
 
-struct hdmi_timing
-{
+struct hdmi_timing {
 	unsigned short hfp;
 	unsigned short hbp;
 	unsigned short hsync;

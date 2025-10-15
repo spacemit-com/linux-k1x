@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2023 Spacemit Co., Ltd.
  *
@@ -7,20 +7,18 @@
 #ifndef PREPIPE_LAYER_PROC_X_REG_H
 #define PREPIPE_LAYER_PROC_X_REG_H
 
-typedef union
-{
-	struct
-	{
+typedef union {
+	struct {
 	//REGISTER layer_proc_reg_0
-	UINT32 m_nlayer_pro_en               : 1 ;
-	UINT32 m_ngain_to_full_en            : 1 ;
-	UINT32 m_nmatrix_en                  : 1 ;
-	UINT32 m_nfront_tmootf_en            : 1 ;
-	UINT32 m_nend_tmootf_en              : 1 ;
-	UINT32 m_ncolor_key_en               : 1 ;
-	UINT32 m_neotf_en                    : 1 ;
-	UINT32 m_noetf_en                    : 1 ;
-	UINT32                               : 24;
+	UINT32 m_nlayer_pro_en               : 1;
+	UINT32 m_ngain_to_full_en            : 1;
+	UINT32 m_nmatrix_en                  : 1;
+	UINT32 m_nfront_tmootf_en            : 1;
+	UINT32 m_nend_tmootf_en              : 1;
+	UINT32 m_ncolor_key_en               : 1;
+	UINT32 m_neotf_en                    : 1;
+	UINT32 m_noetf_en                    : 1;
+	UINT32: 24;
 
 
 	//REGISTER layer_proc_reg_1
@@ -28,11 +26,11 @@ typedef union
 
 
 	//REGISTER layer_proc_reg_2
-	UINT32 m_neotf_mode                  : 3 ;
-	UINT32 m_noetf_mode                  : 3 ;
-	UINT32                               : 2 ;
+	UINT32 m_neotf_mode                  : 3;
+	UINT32 m_noetf_mode                  : 3;
+	UINT32: 2;
 	UINT32 m_noetf_max                   : 12;
-	UINT32                               : 12;
+	UINT32: 12;
 
 
 	//REGISTER layer_proc_reg_3
@@ -197,9 +195,9 @@ typedef union
 
 	//REGISTER layer_proc_reg_35
 	UINT32 m_pfront_tmootf_gain_table64  : 16;
-	UINT32 m_nfront_tmootf_shift_bits    : 5 ;
-	UINT32 m_nfront_tmootf_rgb_mode      : 2 ;
-	UINT32                               : 9 ;
+	UINT32 m_nfront_tmootf_shift_bits    : 5;
+	UINT32 m_nfront_tmootf_rgb_mode      : 2;
+	UINT32: 9;
 
 
 	//REGISTER layer_proc_reg_36
@@ -364,88 +362,87 @@ typedef union
 
 	//REGISTER layer_proc_reg_68
 	UINT32 m_pend_tmootf_gain_table64    : 16;
-	UINT32 m_nend_tmootf_shift_bits      : 5 ;
-	UINT32 m_nend_tmootf_rgb_mode        : 2 ;
-	UINT32                               : 9 ;
+	UINT32 m_nend_tmootf_shift_bits      : 5;
+	UINT32 m_nend_tmootf_rgb_mode        : 2;
+	UINT32: 9;
 
 
 	//REGISTER layer_proc_reg_69
 	UINT32 m_pmatrix_table0              : 14;
-	UINT32                               : 2 ;
+	UINT32: 2;
 	UINT32 m_pmatrix_table1              : 14;
-	UINT32                               : 2 ;
+	UINT32: 2;
 
 
 	//REGISTER layer_proc_reg_70
 	UINT32 m_pmatrix_table2              : 14;
-	UINT32                               : 2 ;
+	UINT32: 2;
 	UINT32 m_pmatrix_table3              : 14;
-	UINT32                               : 2 ;
+	UINT32: 2;
 
 
 	//REGISTER layer_proc_reg_71
 	UINT32 m_pmatrix_table4              : 14;
-	UINT32                               : 2 ;
+	UINT32: 2;
 	UINT32 m_pmatrix_table5              : 14;
-	UINT32                               : 2 ;
+	UINT32: 2;
 
 
 	//REGISTER layer_proc_reg_72
 	UINT32 m_pmatrix_table6              : 14;
-	UINT32                               : 2 ;
+	UINT32: 2;
 	UINT32 m_pmatrix_table7              : 14;
-	UINT32                               : 2 ;
+	UINT32: 2;
 
 
 	//REGISTER layer_proc_reg_73
 	UINT32 m_pmatrix_table8              : 14;
-	UINT32                               : 18;
+	UINT32: 18;
 
 
 	//REGISTER layer_proc_reg_74
 	UINT32 m_pmatrix_offset0             : 25;
-	UINT32                               : 7 ;
+	UINT32: 7;
 
 
 	//REGISTER layer_proc_reg_75
 	UINT32 m_pmatrix_offset1             : 25;
-	UINT32                               : 7 ;
+	UINT32: 7;
 
 
 	//REGISTER layer_proc_reg_76
 	UINT32 m_pmatrix_offset2             : 25;
-	UINT32                               : 7 ;
+	UINT32: 7;
 
 
 	//REGISTER layer_proc_reg_77
 	UINT32 m_ngain_to_full               : 16;
 	UINT32 m_pcolor_key_R_thr0           : 12;
-	UINT32                               : 4 ;
+	UINT32: 4;
 
 
 	//REGISTER layer_proc_reg_78
 	UINT32 m_pcolor_key_R_thr1           : 12;
-	UINT32                               : 4 ;
+	UINT32: 4;
 	UINT32 m_pcolor_key_G_thr0           : 12;
-	UINT32                               : 4 ;
+	UINT32: 4;
 
 
 	//REGISTER layer_proc_reg_79
 	UINT32 m_pcolor_key_G_thr1           : 12;
-	UINT32                               : 4 ;
+	UINT32: 4;
 	UINT32 m_pcolor_key_B_thr0           : 12;
-	UINT32                               : 4 ;
+	UINT32: 4;
 
 
 	//REGISTER layer_proc_reg_80
 	UINT32 m_pcolor_key_B_thr1           : 12;
-	UINT32                               : 20;
+	UINT32: 20;
 
 
 	} b;
 
-	struct
-	{
+	struct {
 	//REGISTER layer_proc_reg_0
 	UINT32 layer_proc_reg_0;
 
@@ -774,7 +771,7 @@ typedef union
 
 	//INT32 value32[81];
 
-}PREPIPE_LAYER_PROC_X_REG;
+} PREPIPE_LAYER_PROC_X_REG;
 
 #endif
 

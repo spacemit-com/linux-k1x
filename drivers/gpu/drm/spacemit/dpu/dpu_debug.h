@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2023 Spacemit Co., Ltd.
  *
@@ -90,14 +90,14 @@ typedef enum {
 	E_WB_TOP_1_REG,
 
 	E_DPU_DUMP_ALL
-}dpu_reg_enum;
+} dpu_reg_enum;
 
 typedef struct dpu_reg_dump {
 	dpu_reg_enum	index;
-	u8*		module_name;
+	u8 *module_name;
 	uint32_t	module_offset;
 	uint32_t	dump_reg_num;
-}dpu_reg_dump_t;
+} dpu_reg_dump_t;
 
 void dump_dpu_regs(struct spacemit_dpu *dpu, dpu_reg_enum reg_enum, u8 trace_dump);
 void dpu_dump_reg(struct spacemit_dpu *dpu);

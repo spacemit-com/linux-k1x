@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2023 Spacemit Co., Ltd.
  *
@@ -72,22 +72,13 @@
 			 LEFT_BASE_ADDR##reg_id##_HIGH, 0); \
 }
 
-#define CONFIG_WB_ADDR_REG(hwdev, reg_id, addr) \
-{ \
-	struct spacemit_hw_device *hwdev_p = (struct spacemit_hw_device *)hwdev; \
-	dpu_write_reg(hwdev_p, WB_TOP_REG, WB0_TOP_BASE_ADDR, \
-			wb_wdma_base_addr##reg_id##_low, addr & 0xFFFFFFFF); \
-	dpu_write_reg(hwdev_p, WB_TOP_REG, WB0_TOP_BASE_ADDR, \
-			wb_wdma_base_addr##reg_id##_high, (addr >> 32) & 0x3); \
-}
-
 struct tbu_instance {
 	uint64_t ttb_pa[3];
 	uint64_t tbu_va[3];
 	uint32_t ttb_size[3];
 };
 
-int spacemit_dmmu_map(struct drm_plane *plane, struct dpu_mmu_tbl *mmu_tbl, u8 tbu_id, bool wb);
+int spacemit_dmmu_map(struct drm_framebuffer *fb, struct dpu_mmu_tbl *mmu_tbl, u8 tbu_id);
 void spacemit_dmmu_unmap(struct drm_plane *plane);
 
 #endif /* _SPACEMIT_DMMU_H_ */

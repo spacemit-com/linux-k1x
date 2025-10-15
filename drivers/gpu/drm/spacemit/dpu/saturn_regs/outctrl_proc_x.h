@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2023 Spacemit Co., Ltd.
  *
@@ -7,32 +7,30 @@
 #ifndef OUTCTRL_PROC_X_REG_H
 #define OUTCTRL_PROC_X_REG_H
 
-typedef union
-{
-	struct
-	{
+typedef union {
+	struct {
 	//REGISTER Post_proc_reg_0
-	UINT32 m_npost_proc_en               : 1 ;
-	UINT32 m_ngain_to_full_en            : 1 ;
-	UINT32 m_nmatrix_en                  : 1 ;
-	UINT32 m_nendmatrix_en               : 1 ;
-	UINT32 m_nfront_tmootf_en            : 1 ;
-	UINT32 m_nend_tmootf_en              : 1 ;
-	UINT32 m_neotf_en                    : 1 ;
-	UINT32 m_noetf_en                    : 1 ;
-	UINT32                               : 24;
+	UINT32 m_npost_proc_en               : 1;
+	UINT32 m_ngain_to_full_en            : 1;
+	UINT32 m_nmatrix_en                  : 1;
+	UINT32 m_nendmatrix_en               : 1;
+	UINT32 m_nfront_tmootf_en            : 1;
+	UINT32 m_nend_tmootf_en              : 1;
+	UINT32 m_neotf_en                    : 1;
+	UINT32 m_noetf_en                    : 1;
+	UINT32: 24;
 
 
 	//REGISTER Post_proc_reg_1
-	UINT32 m_neotf_mode                  : 3 ;
-	UINT32                               : 29;
+	UINT32 m_neotf_mode                  : 3;
+	UINT32: 29;
 
 
 	//REGISTER Post_proc_reg_2
-	UINT32 m_noetf_mode                  : 3 ;
-	UINT32                               : 5 ;
+	UINT32 m_noetf_mode                  : 3;
+	UINT32: 5;
 	UINT32 m_noetf_max                   : 12;
-	UINT32                               : 12;
+	UINT32: 12;
 
 
 	//REGISTER Post_proc_reg_3
@@ -197,9 +195,9 @@ typedef union
 
 	//REGISTER Post_proc_reg_35
 	UINT32 m_pfront_tmootf_gain_table64  : 16;
-	UINT32 m_nfront_tmootf_shift_bits    : 5 ;
-	UINT32 m_nfront_tmootf_rgb_mode      : 2 ;
-	UINT32                               : 9 ;
+	UINT32 m_nfront_tmootf_shift_bits    : 5;
+	UINT32 m_nfront_tmootf_rgb_mode      : 2;
+	UINT32: 9;
 
 
 	//REGISTER Post_proc_reg_36
@@ -364,117 +362,117 @@ typedef union
 
 	//REGISTER Post_proc_reg_68
 	UINT32 m_pend_tmootf_gain_table64    : 16;
-	UINT32 m_nend_tmootf_shift_bits      : 5 ;
-	UINT32 m_nend_tmootf_rgb_mode        : 2 ;
-	UINT32                               : 9 ;
+	UINT32 m_nend_tmootf_shift_bits      : 5;
+	UINT32 m_nend_tmootf_rgb_mode        : 2;
+	UINT32: 9;
 
 
 	//REGISTER Post_proc_reg_69
 	UINT32 m_pmatrix_table0              : 14;
-	UINT32                               : 2 ;
+	UINT32: 2;
 	UINT32 m_pmatrix_table1              : 14;
-	UINT32                               : 2 ;
+	UINT32: 2;
 
 
 	//REGISTER Post_proc_reg_70
 	UINT32 m_pmatrix_table2              : 14;
-	UINT32                               : 2 ;
+	UINT32: 2;
 	UINT32 m_pmatrix_table3              : 14;
-	UINT32                               : 2 ;
+	UINT32: 2;
 
 
 	//REGISTER Post_proc_reg_71
 	UINT32 m_pmatrix_table4              : 14;
-	UINT32                               : 2 ;
+	UINT32: 2;
 	UINT32 m_pmatrix_table5              : 14;
-	UINT32                               : 2 ;
+	UINT32: 2;
 
 
 	//REGISTER Post_proc_reg_72
 	UINT32 m_pmatrix_table6              : 14;
-	UINT32                               : 2 ;
+	UINT32: 2;
 	UINT32 m_pmatrix_table7              : 14;
-	UINT32                               : 2 ;
+	UINT32: 2;
 
 
 	//REGISTER Post_proc_reg_73
 	UINT32 m_pmatrix_table8              : 14;
-	UINT32                               : 18;
+	UINT32: 18;
 
 
 	//REGISTER Post_proc_reg_74
 	UINT32 m_pmatrix_offset0             : 25;
-	UINT32                               : 7 ;
+	UINT32: 7;
 
 
 	//REGISTER Post_proc_reg_75
 	UINT32 m_pmatrix_offset1             : 25;
-	UINT32                               : 7 ;
+	UINT32: 7;
 
 
 	//REGISTER Post_proc_reg_76
 	UINT32 m_pmatrix_offset2             : 25;
-	UINT32                               : 7 ;
+	UINT32: 7;
 
 
 	//REGISTER Post_proc_reg_77
 	UINT32 m_ngain_to_full               : 16;
-	UINT32                               : 16;
+	UINT32: 16;
 
 
 	//REGISTER Post_proc_reg_78
 	UINT32 m_pendmatrix_table0           : 14;
-	UINT32                               : 2 ;
+	UINT32: 2;
 	UINT32 m_pendmatrix_table1           : 14;
-	UINT32                               : 2 ;
+	UINT32: 2;
 
 
 	//REGISTER Post_proc_reg_79
 	UINT32 m_pendmatrix_table2           : 14;
-	UINT32                               : 2 ;
+	UINT32: 2;
 	UINT32 m_pendmatrix_table3           : 14;
-	UINT32                               : 2 ;
+	UINT32: 2;
 
 
 	//REGISTER Post_proc_reg_80
 	UINT32 m_pendmatrix_table4           : 14;
-	UINT32                               : 2 ;
+	UINT32: 2;
 	UINT32 m_pendmatrix_table5           : 14;
-	UINT32                               : 2 ;
+	UINT32: 2;
 
 
 	//REGISTER Post_proc_reg_81
 	UINT32 m_pendmatrix_table6           : 14;
-	UINT32                               : 2 ;
+	UINT32: 2;
 	UINT32 m_pendmatrix_table7           : 14;
-	UINT32                               : 2 ;
+	UINT32: 2;
 
 
 	//REGISTER Post_proc_reg_82
 	UINT32 m_pendmatrix_table8           : 14;
-	UINT32                               : 18;
+	UINT32: 18;
 
 
 	//REGISTER Post_proc_reg_83
 	UINT32 m_pendmatrix_offset0          : 13;
-	UINT32                               : 19;
+	UINT32: 19;
 
 
 	//REGISTER Post_proc_reg_84
 	UINT32 m_pendmatrix_offset1          : 13;
-	UINT32                               : 19;
+	UINT32: 19;
 
 
 	//REGISTER Post_proc_reg_85
 	UINT32 m_pendmatrix_offset2          : 13;
-	UINT32                               : 19;
+	UINT32: 19;
 
 
 	};
 
 	INT32 value32[86];
 
-}OUTCTRL_PROC_X_REG;
+} OUTCTRL_PROC_X_REG;
 
 
 #endif

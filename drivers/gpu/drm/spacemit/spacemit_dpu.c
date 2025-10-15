@@ -26,10 +26,7 @@
 #include "spacemit_dpu.h"
 #include "spacemit_gem.h"
 #include "spacemit_lib.h"
-#include "spacemit_bootloader.h"
 #include "dpu/dpu_saturn.h"
-#include "dpu/dpu_debug.h"
-#include "sysfs/sysfs_display.h"
 #include "dpu/dpu_trace.h"
 
 LIST_HEAD(dpu_core_head);
@@ -47,23 +44,21 @@ static int spacemit_crtc_atomic_check_color_matrix(struct drm_crtc *crtc,
 	int *data;
 	int n;
 
-	if (blob){
+	if (blob) {
 		data = (int *)blob->data;
-		for (n = 0; n < 9; n++){
-			if ((data[n] > 8191) || (data[n] < -8192)){
+		for (n = 0; n < 9; n++) {
+			if ((data[n] > 8191) || (data[n] < -8192)) {
 				DRM_DEBUG("The value of color matrix coeffs is invalid: value %d, n %d\n", data[n], n);
 				return -EINVAL;
-			}
-			else
+			} else
 				data[n] = data[n] & 0x3FFF;
 		}
 
-		for (n = 9; n < 12; n++){
-			if ((data[n] > 4095) || (data[n] < -4096)){
+		for (n = 9; n < 12; n++) {
+			if ((data[n] > 4095) || (data[n] < -4096)) {
 				DRM_DEBUG("The value of color matrix offset is invalid: value %d, n %d\n", data[n], n);
 				return -EINVAL;
-			}
-			else
+			} else
 				data[n] = data[n] & 0x3FFF;
 		}
 	}
@@ -206,8 +201,7 @@ static int spacemit_crtc_atomic_check_aclk(struct drm_crtc *crtc,
 		tmp1 = ac->mclk;
 		do_div(tmp1, afbc_effc);
 		ac->aclk = max(tmp, tmp1);
-	}
-	else {
+	} else {
 		//ac->aclk = ac->bw / 16 * 10 / 5;
 		tmp = ac->bw;
 		do_div(tmp, 16);
@@ -309,9 +303,6 @@ static void spacemit_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	spacemit_dpu_init(dpu);
 
-	if (!IS_ERR_OR_NULL(dpu->enable_gpio)) {
-		gpiod_direction_output(dpu->enable_gpio, 1);
-	}
 }
 
 static void spacemit_crtc_atomic_disable(struct drm_crtc *crtc,
@@ -319,13 +310,14 @@ static void spacemit_crtc_atomic_disable(struct drm_crtc *crtc,
 {
 	struct spacemit_dpu *dpu = crtc_to_dpu(crtc);
 	struct drm_device *drm = dpu->crtc.dev;
+	struct drm_crtc_state *old_crtc_state;
 
 	DRM_INFO("%s(power off)\n", __func__);
 	trace_spacemit_crtc_atomic_disable(dpu->dev_id);
 
-	if (!IS_ERR_OR_NULL(dpu->enable_gpio)) {
-		gpiod_direction_output(dpu->enable_gpio, 0);
-	}
+	/* always disable planes on the CRTC that is being turned off */
+	old_crtc_state = drm_atomic_get_old_crtc_state(old_state, crtc);
+	drm_atomic_helper_disable_planes_on_crtc(old_crtc_state, false);
 
 	spacemit_dpu_uninit(dpu);
 
@@ -357,7 +349,7 @@ static int spacemit_crtc_atomic_check(struct drm_crtc *crtc,
 
 	ret = spacemit_crtc_atomic_check_scaling(crtc, state);
 
-	if (spacemit_crtc_atomic_check_color_matrix(crtc, state)){
+	if (spacemit_crtc_atomic_check_color_matrix(crtc, state)) {
 		DRM_DEBUG("The value of color matrix is invalid\n");
 		return -EINVAL;
 	}
@@ -397,7 +389,7 @@ static void spacemit_crtc_atomic_flush(struct drm_crtc *crtc,
 
 	DRM_DEBUG("%s()\n", __func__);
 	trace_spacemit_crtc_atomic_flush(dpu->dev_id);
-	// spacemit_dpu_wb_config(dpu);
+
 	saturn_conf_dpuctrl_color_matrix(dpu, old_state);
 	spacemit_crtc_atomic_update_mclk(crtc, old_state);
 	spacemit_dpu_run(crtc, old_state);
@@ -405,7 +397,7 @@ static void spacemit_crtc_atomic_flush(struct drm_crtc *crtc,
 
 static struct drm_crtc_state *spacemit_crtc_duplicate_state(struct drm_crtc *crtc)
 {
-	struct spacemit_crtc_state *state;
+	struct spacemit_crtc_state *state, *old_state;
 	struct spacemit_drm_private *priv = crtc->dev->dev_private;
 	struct spacemit_hw_device *hwdev = priv->hwdev;
 	u8 n_rdma, i;
@@ -413,6 +405,7 @@ static struct drm_crtc_state *spacemit_crtc_duplicate_state(struct drm_crtc *crt
 	if (WARN_ON(!crtc->state))
 		return NULL;
 
+	old_state = to_spacemit_crtc_state(crtc->state);
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
 		return NULL;
@@ -514,7 +507,7 @@ static int spacemit_crtc_atomic_set_property(struct drm_crtc *crtc,
 	DRM_DEBUG("%s() name = %s, val = %llu\n",
 		  __func__, property->name, val);
 
-	if (property == dpu->color_matrix_property){
+	if (property == dpu->color_matrix_property) {
 		ret = spacemit_atomic_replace_property_blob_from_id(crtc->dev,
 					&s->color_matrix_blob_prop,
 					val,
@@ -540,11 +533,10 @@ static int spacemit_crtc_atomic_get_property(struct drm_crtc *crtc,
 
 	DRM_DEBUG("%s() name = %s\n", __func__, property->name);
 
-	if (property == dpu->color_matrix_property){
+	if (property == dpu->color_matrix_property) {
 		if (s->color_matrix_blob_prop)
 			*val = (s->color_matrix_blob_prop) ? s->color_matrix_blob_prop->base.id : 0;
-	}
-	else {
+	} else {
 		DRM_ERROR("property %s is invalid\n", property->name);
 		return -EINVAL;
 	}
@@ -621,20 +613,12 @@ static int spacemit_crtc_init(struct drm_device *drm, struct drm_crtc *crtc,
 	return 0;
 }
 
-int spacemit_dpu_wb_config(struct spacemit_dpu *dpu)
-{
-	if (dpu->core && dpu->core->wb_config)
-		dpu->core->wb_config(dpu);
-
-	return 0;
-}
-
 int spacemit_dpu_run(struct drm_crtc *crtc,
 		struct drm_crtc_state *old_state)
 {
 	struct spacemit_dpu *dpu = crtc_to_dpu(crtc);
 
-	DRM_DEBUG("%s() type %d \n", __func__, dpu->type);
+	DRM_DEBUG("%s()\n", __func__);
 	trace_spacemit_dpu_run(dpu->dev_id);
 
 	if (dpu->core && dpu->core->run)
@@ -645,7 +629,7 @@ int spacemit_dpu_run(struct drm_crtc *crtc,
 
 int spacemit_dpu_stop(struct spacemit_dpu *dpu)
 {
-	DRM_DEBUG("%s() type %d\n", __func__, dpu->type);
+	DRM_DEBUG("%s()\n", __func__);
 	trace_spacemit_dpu_stop(dpu->dev_id);
 
 	if (dpu->core && dpu->core->stop)
@@ -659,6 +643,8 @@ int spacemit_dpu_stop(struct spacemit_dpu *dpu)
 static int spacemit_dpu_init(struct spacemit_dpu *dpu)
 {
 	trace_spacemit_dpu_init(dpu->dev_id);
+
+	DRM_DEBUG("%s()\n", __func__);
 
 	if (dpu->core && dpu->core->init)
 		dpu->core->init(dpu);
@@ -749,7 +735,7 @@ static void dpu_wq_update_clk(struct work_struct *work)
 }
 
 #ifdef CONFIG_SPACEMIT_DEBUG
-static bool check_dpu_running_status(struct spacemit_dpu* dpu)
+static bool check_dpu_running_status(struct spacemit_dpu *dpu)
 {
 	return dpu->is_working;
 }
@@ -806,7 +792,6 @@ static int spacemit_dpu_bind(struct device *dev, struct device *master, void *da
 		goto alloc_fail;
 	}
 
-	INIT_WORK(&dpu->work_stop_trace, dpu_underrun_wq_stop_trace);
 	INIT_WORK(&dpu->work_update_clk, dpu_wq_update_clk);
 	INIT_WORK(&dpu->work_update_bw, dpu_wq_update_bw);
 
@@ -819,10 +804,6 @@ static int spacemit_dpu_bind(struct device *dev, struct device *master, void *da
 	ret = spacemit_crtc_init(drm_dev, &dpu->crtc, plane, np);
 	if (ret)
 		goto err_destroy_workqueue;
-
-	// spacemit_wb_init(drm_dev, &dpu->crtc);
-
-	spacemit_dpu_sysfs_init(dev);
 
 #ifdef CONFIG_SPACEMIT_DEBUG
 	clk_ctx = &dpu->clk_ctx;
@@ -878,8 +859,6 @@ static int spacemit_dpu_probe(struct platform_device *pdev)
 
 	const char *str;
 	u32 dpu_id;
-	u32 dpu_type;
-	static int dpu_num = 0;
 
 	DRM_DEBUG("%s()\n", __func__);
 
@@ -899,10 +878,6 @@ static int spacemit_dpu_probe(struct platform_device *pdev)
 		return -EINVAL;
 	dpu->dev_id = dpu_id;
 
-	if (of_property_read_u32(np, "type", &dpu_type))
-		return -EINVAL;
-	dpu->type = dpu_type;
-
 	if (!of_property_read_string(np, "ip", &str)) {
 		dpu->core = dpu_core_ops_attach(str);
 	} else
@@ -912,74 +887,29 @@ static int spacemit_dpu_probe(struct platform_device *pdev)
 	if (dpu->core && dpu->core->parse_dt)
 		dpu->core->parse_dt(dpu, np);
 
-	DRM_DEBUG("%s() type %d\n", __func__, dpu->type);
+	DRM_DEBUG("%s()\n", __func__);
 
-	dpu->enable_gpio = devm_gpiod_get_optional(dev, "enable",
-						GPIOD_IN);
-	if (!IS_ERR_OR_NULL(dpu->enable_gpio)) {
-		gpiod_direction_output(dpu->enable_gpio, 0);
-		msleep(50);
-	} else {
-		DRM_DEV_DEBUG(dev, "not found enable gpio\n");
+
+	dpu->hdmi_reset = devm_reset_control_get_optional_shared(&pdev->dev, "hdmi_reset");
+	if (IS_ERR_OR_NULL(dpu->hdmi_reset)) {
+		DRM_DEV_DEBUG(dev, "not found hdmi_reset\n");
 	}
 
-	if (dpu->type == DSI) {
-		dpu->dsi_reset = devm_reset_control_get_optional_shared(&pdev->dev, "dsi_reset");
-		if (IS_ERR_OR_NULL(dpu->dsi_reset)) {
-			DRM_DEV_DEBUG(dev, "not found dsi_reset\n");
-		}
-		dpu->mclk_reset = devm_reset_control_get_optional_shared(&pdev->dev, "mclk_reset");
-		if (IS_ERR_OR_NULL(dpu->mclk_reset)) {
-			DRM_DEV_DEBUG(dev, "not found mclk_reset\n");
-		}
-		dpu->esc_reset = devm_reset_control_get_optional_shared(&pdev->dev, "esc_reset");
-		if (IS_ERR_OR_NULL(dpu->esc_reset)) {
-			DRM_DEV_DEBUG(dev, "not found esc_reset\n");
-		}
-		dpu->lcd_reset = devm_reset_control_get_optional_shared(&pdev->dev, "lcd_reset");
-		if (IS_ERR_OR_NULL(dpu->lcd_reset)) {
-			DRM_DEV_DEBUG(dev, "not found lcd_reset\n");
-		}
-	} else if (dpu->type == HDMI) {
-		dpu->hdmi_reset = devm_reset_control_get_optional_shared(&pdev->dev, "hdmi_reset");
-		if (IS_ERR_OR_NULL(dpu->hdmi_reset)) {
-			DRM_DEV_DEBUG(dev, "not found hdmi_reset\n");
-		}
-	} else {
-		DRM_DEV_ERROR(dev, "can't find dpu type %d\n", dpu->type);
-		return -ENODEV;
-	}
 
-	dpu_num++;
-	pm_runtime_enable(&pdev->dev);
 	/*
 	 * To keep bootloader logo on, below operations must be
 	 * done in probe func as power domain framework will turn
 	 * on/off lcd power domain before/after probe func.
 	 */
 	if (dpu->logo_booton) {
+		pm_runtime_enable(&pdev->dev);
+
 		pm_runtime_get_sync(&pdev->dev);
 		dpu_pm_resume(&pdev->dev);
 		dpu_pm_suspend(&pdev->dev);
 		pm_runtime_put_sync(&pdev->dev);
 		dpu->logo_booton = false;
 		msleep(10);
-	}
-
-	rmem_np = of_find_node_by_name(NULL, "reserved-memory");
-	if (rmem_np && (dpu_num >= 2)) {
-		fb_np = of_find_node_by_name(rmem_np, "framebuffer");
-		if (fb_np) {
-			ret = of_address_to_resource(fb_np, 0, &rsrv_mem);
-			if (ret < 0) {
-				DRM_DEV_ERROR(dev, "no reserved memory resource find in reserved framebuffer node\n");
-			} else {
-				rmem.base = rsrv_mem.start;
-				rmem.size = resource_size(&rsrv_mem);
-
-				spacemit_dpu_free_bootloader_mem(&rmem);
-			}
-		}
 	}
 
 	return component_add(dev, &dpu_component_ops);
@@ -995,45 +925,19 @@ static int dpu_pm_suspend(struct device *dev)
 	struct spacemit_dpu *dpu = dev_get_drvdata(dev);
 	int result;
 
-	DRM_DEBUG("%s() type %d\n", __func__, dpu->type);
+	DRM_DEBUG("%s()\n", __func__);
 
 	if (dpu->core && dpu->core->disable_clk)
 		dpu->core->disable_clk(dpu);
 
-	if (dpu->type == HDMI) {
-		if (!IS_ERR_OR_NULL(dpu->hdmi_reset)) {
-			result = reset_control_assert(dpu->hdmi_reset);
-			if (result < 0) {
-				DRM_INFO("Failed to assert hdmi_reset: %d\n", result);
-			}
-		}
-	} else if (dpu->type == DSI) {
 
-		if (!IS_ERR_OR_NULL(dpu->lcd_reset)) {
-			result = reset_control_assert(dpu->lcd_reset);
-			if (result < 0) {
-				DRM_INFO("Failed to assert lcd_reset: %d\n", result);
-			}
-		}
-		if (!IS_ERR_OR_NULL(dpu->esc_reset)) {
-			result = reset_control_assert(dpu->esc_reset);
-			if (result < 0) {
-				DRM_INFO("Failed to assert esc_reset: %d\n", result);
-			}
-		}
-		if (!IS_ERR_OR_NULL(dpu->mclk_reset)) {
-			result = reset_control_assert(dpu->mclk_reset);
-			if (result < 0) {
-				DRM_INFO("Failed to assert mclk_reset: %d\n", result);
-			}
-		}
-		if (!IS_ERR_OR_NULL(dpu->dsi_reset)) {
-			result = reset_control_assert(dpu->dsi_reset);
-			if (result < 0) {
-				DRM_INFO("Failed to assert dsi_reset: %d\n", result);
-			}
+	if (!IS_ERR_OR_NULL(dpu->hdmi_reset)) {
+		result = reset_control_assert(dpu->hdmi_reset);
+		if (result < 0) {
+			DRM_INFO("Failed to assert hdmi_reset: %d\n", result);
 		}
 	}
+
 
 	return 0;
 }
@@ -1043,39 +947,13 @@ static int dpu_pm_resume(struct device *dev)
 	struct spacemit_dpu *dpu = dev_get_drvdata(dev);
 	int result;
 
-	DRM_DEBUG("%s() type %d\n", __func__, dpu->type);
+	DRM_DEBUG("%s()\n", __func__);
 
-	if (dpu->type == HDMI) {
-		if (!IS_ERR_OR_NULL(dpu->hdmi_reset)) {
-			result = reset_control_deassert(dpu->hdmi_reset);
-			if (result < 0) {
-				DRM_INFO("Failed to deassert hdmi_reset: %d\n", result);
-			}
-		}
-	} else if (dpu->type == DSI){
-		if (!IS_ERR_OR_NULL(dpu->dsi_reset)) {
-			result = reset_control_deassert(dpu->dsi_reset);
-			if (result < 0) {
-				DRM_INFO("Failed to deassert dsi_reset: %d\n", result);
-			}
-		}
-		if (!IS_ERR_OR_NULL(dpu->mclk_reset)) {
-			result = reset_control_deassert(dpu->mclk_reset);
-			if (result < 0) {
-				DRM_INFO("Failed to deassert mclk_reset: %d\n", result);
-			}
-		}
-		if (!IS_ERR_OR_NULL(dpu->esc_reset)) {
-			result = reset_control_deassert(dpu->esc_reset);
-			if (result < 0) {
-				DRM_INFO("Failed to deassert esc_reset: %d\n", result);
-			}
-		}
-		if (!IS_ERR_OR_NULL(dpu->lcd_reset)) {
-			result = reset_control_deassert(dpu->lcd_reset);
-			if (result < 0) {
-				DRM_INFO("Failed to deassert lcd_reset: %d\n", result);
-			}
+
+	if (!IS_ERR_OR_NULL(dpu->hdmi_reset)) {
+		result = reset_control_deassert(dpu->hdmi_reset);
+		if (result < 0) {
+			DRM_INFO("Failed to deassert hdmi_reset: %d\n", result);
 		}
 	}
 
@@ -1089,7 +967,7 @@ static int dpu_rt_pm_suspend(struct device *dev)
 {
 	struct spacemit_dpu *dpu = dev_get_drvdata(dev);
 
-	DRM_DEBUG("%s() type %d\n", __func__, dpu->type);
+	DRM_DEBUG("%s()\n", __func__);
 
 	return 0;
 }
@@ -1098,7 +976,7 @@ static int dpu_rt_pm_resume(struct device *dev)
 {
 	struct spacemit_dpu *dpu = dev_get_drvdata(dev);
 
-	DRM_DEBUG("%s() type %d\n", __func__, dpu->type);
+	DRM_DEBUG("%s()\n", __func__);
 
 	return 0;
 }

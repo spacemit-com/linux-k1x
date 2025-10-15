@@ -26,7 +26,6 @@
 #include "../spacemit_dmmu.h"
 #include "../spacemit_dpu_reg.h"
 #include "../spacemit_drm.h"
-#include "../spacemit_wb.h"
 #include <video/display_timing.h>
 #include <dt-bindings/display/spacemit-dpu.h>
 
@@ -67,13 +66,13 @@ static const struct dpu_format_id primary_fmts[] = {
 	{ DRM_FORMAT_XRGB1555,      21 }, //RDMA_FMT_XRGB_1555
 	{ DRM_FORMAT_ARGB16161616F, 24 }, //RDMA_FMT_ARGB_16161616
 	{ DRM_FORMAT_ABGR16161616F, 25 }, //RDMA_FMT_ABGR_16161616
-	{ DRM_FORMAT_XYUV8888,      32 }, //RDMA_FMT_XYUV_444_P1_8, uv_swap has no corresponding fourcc format
 	{ DRM_FORMAT_Y410,          33 }, //RDMA_FMT_XYUV_444_P1_10, uv_swap has no corresponding fourcc format
 	{ DRM_FORMAT_YUYV,          34 }, //RDMA_FMT_VYUY_422_P1_8
 	{ DRM_FORMAT_YVYU,          34 }, //RDMA_FMT_VYUY_422_P1_8, uv_swap = 1
 	{ DRM_FORMAT_UYVY,          35 }, //RDMA_FMT_YVYU_422_P1_8
 	{ DRM_FORMAT_VYUY,          35 }, //RDMA_FMT_YVYU_422_P1_8, uv_swap = 1
 	*/
+	{ DRM_FORMAT_XYUV8888,      32, 32 }, //RDMA_FMT_XYUV_444_P1_8, uv_swap has no corresponding fourcc format
 	{ DRM_FORMAT_YUV420_8BIT,   37, 12 }, //DRM_FORMAT_YUV420_8BIT for AFBC
 	{ DRM_FORMAT_NV12,          37, 12 }, //RDMA_FMT_YUV_420_P2_8
 	/*
@@ -164,19 +163,21 @@ const u32 saturn_le_rdma_fixed_fbcmem_sizes[] = {
 	32 * 1024,
 };
 
-static atomic_t mclk_cnt = ATOMIC_INIT(0);;
-static bool dpu_mclk_exclusive_get(void)
+static atomic_t mclk_cnt = ATOMIC_INIT(0);
+bool dpu_mclk_exclusive_get(void)
 {
-	if (0 == atomic_cmpxchg(&mclk_cnt, 0, 1))
+	if (atomic_cmpxchg(&mclk_cnt, 0, 1) == 0)
 		return true;
 	else
 		return false;
 }
+EXPORT_SYMBOL(dpu_mclk_exclusive_get);
 
-static void dpu_mclk_exclusive_put(void)
+void dpu_mclk_exclusive_put(void)
 {
 	atomic_set(&mclk_cnt, 0);
 }
+EXPORT_SYMBOL(dpu_mclk_exclusive_put);
 
 struct spacemit_hw_device spacemit_dp_devices[DP_MAX_DEVICES] = {
 	[SATURN_HDMI] = {
@@ -193,23 +194,6 @@ struct spacemit_hw_device spacemit_dp_devices[DP_MAX_DEVICES] = {
 		.solid_color_shift = 0,
 		.hdr_coef_size = 135,
 		.scale_coef_size = 48,
-		.is_hdmi = true,
-	},
-	[SATURN_LE] = {
-		.base = NULL,		/* Parsed by dts */
-		.phy_addr = 0x0,	/* Parsed by dts */
-		.plane_nums = 8,
-		.rdma_nums = ARRAY_SIZE(saturn_le_rdmas),
-		.rdmas = saturn_le_rdmas,
-		.n_formats = ARRAY_SIZE(primary_fmts),
-		.formats = primary_fmts,
-		.n_fbcmems = ARRAY_SIZE(saturn_le_fbcmem_sizes),
-		.fbcmem_sizes = saturn_le_fbcmem_sizes,
-		.rdma_fixed_fbcmem_sizes = saturn_le_rdma_fixed_fbcmem_sizes,
-		.solid_color_shift = 0,
-		.hdr_coef_size = 135,
-		.scale_coef_size = 48,
-		.is_hdmi = false,
 	},
 };
 EXPORT_SYMBOL(spacemit_dp_devices);
@@ -217,31 +201,6 @@ EXPORT_SYMBOL(spacemit_dp_devices);
 static int dpu_parse_dt(struct spacemit_dpu *dpu, struct device_node *np)
 {
 	struct dpu_clk_context *clk_ctx = &dpu->clk_ctx;
-
-	clk_ctx->pxclk = of_clk_get_by_name(np, "pxclk");
-	if (IS_ERR(clk_ctx->pxclk)) {
-		pr_debug("%s, read pxclk failed from dts!\n", __func__);
-	}
-
-	clk_ctx->mclk = of_clk_get_by_name(np, "mclk");
-	if (IS_ERR(clk_ctx->mclk)) {
-		pr_debug("%s, read mclk failed from dts!\n", __func__);
-	}
-
-	clk_ctx->hclk = of_clk_get_by_name(np, "hclk");
-	if (IS_ERR(clk_ctx->hclk)) {
-		pr_debug("%s, read hclk failed from dts!\n", __func__);
-	}
-
-	clk_ctx->escclk = of_clk_get_by_name(np, "escclk");
-	if (IS_ERR(clk_ctx->escclk)) {
-		pr_debug("%s, read escclk failed from dts!\n", __func__);
-	}
-
-	clk_ctx->bitclk = of_clk_get_by_name(np, "bitclk");
-	if (IS_ERR(clk_ctx->bitclk)) {
-		pr_debug("%s, read bitclk failed from dts!\n", __func__);
-	}
 
 	clk_ctx->hmclk = of_clk_get_by_name(np, "hmclk");
 	if (IS_ERR(clk_ctx->hmclk)) {
@@ -260,6 +219,9 @@ static int dpu_parse_dt(struct spacemit_dpu *dpu, struct device_node *np)
 	if (of_property_read_u32(np, "spacemit-dpu-escclk", &dpu->escclk))
 		dpu->escclk = DPU_ESCCLK_DEFAULT;
 
+	if (of_property_read_u32(np, "spacemit-dpu-workmode", &dpu->work_mode))
+		dpu->work_mode = SPACEMIT_DPU_MODE_VIDEO;
+
 	return 0;
 }
 
@@ -268,7 +230,7 @@ static unsigned int dpu_get_bpp(u32 format)
 {
 	unsigned int i = 0;
 
-	for(i = 0; i < ARRAY_SIZE(primary_fmts); i++) {
+	for (i = 0; i < ARRAY_SIZE(primary_fmts); i++) {
 		if (format == primary_fmts[i].format)
 			return primary_fmts[i].bpp;
 	}
@@ -277,7 +239,7 @@ static unsigned int dpu_get_bpp(u32 format)
 	return SPACEMIT_DPU_INVALID_FORMAT_ID;
 }
 
-static int dpu_calc_plane_mclk_bw(struct drm_plane *plane, \
+int dpu_calc_plane_mclk_bw(struct drm_plane *plane, \
 		struct drm_plane_state *new_state)
 {
 	/* For some platform without aclk, mclk = max(aclk, mclk) */
@@ -382,7 +344,7 @@ static int dpu_calc_plane_mclk_bw(struct drm_plane *plane, \
 
 		trace_u64_data("no scl img_width", img_width);
 		//calc_mclk = ( hact + 32 ) * MHZ2HZ / hact * Fpixclk_hblk / 2 / MHZ2HZ;
-		tmp = ( hact + 32 ) * MHZ2HZ;
+		tmp = (hact + 32) * MHZ2HZ;
 		do_div(tmp, hact);
 		tmp = tmp * Fpixclk_hblk;
 		tmp = tmp >> 1;
@@ -425,37 +387,7 @@ static int dpu_calc_plane_mclk_bw(struct drm_plane *plane, \
 
 static int dpu_update_clocks(struct spacemit_dpu *dpu, uint64_t mclk)
 {
-	struct dpu_clk_context *clk_ctx = &dpu->clk_ctx;
-	uint64_t cur_mclk = 0;
-	int ret = 0;
-	struct spacemit_drm_private *priv = dpu->crtc.dev->dev_private;
-	struct spacemit_hw_device *hwdev = priv->hwdev;
-
-	if (!hwdev->is_hdmi) {
-		trace_u64_data("update mclk", mclk);
-		cur_mclk = clk_get_rate(clk_ctx->mclk);
-		if (cur_mclk == mclk)
-			return 0;
-		if (dpu_mclk_exclusive_get()) {
-			ret = clk_set_rate(clk_ctx->mclk, mclk);
-			if (ret) {
-				trace_u64_data("Failed to set mclk", mclk);
-				DRM_ERROR("Failed to set DPU MCLK %lld %d\n", mclk, ret);
-			} else {
-				dpu_mclk_exclusive_put();
-				dpu->cur_mclk = clk_get_rate(clk_ctx->mclk);
-				trace_u64_data("Pass to set mclk", mclk);
-			}
-		} else {
-			if (mclk > dpu->cur_mclk) {
-				trace_u64_data("MCLK using by other module", mclk);
-				DRM_ERROR("Mclk using by other module %lld\n", mclk);
-			} else
-				dpu->cur_mclk = mclk;
-
-			return 0;
-		}
-	}
+	DRM_DEBUG("%s()\n", __func__);
 
 	return 0;
 }
@@ -478,72 +410,41 @@ static int dpu_finish_uboot(struct spacemit_dpu *dpu)
 	void __iomem *hdmi;
 	u32 value;
 
-	DRM_DEBUG("%s() type %d\n", __func__, dpu->type);
+	DRM_DEBUG("%s()\n", __func__);
 
-	if (dpu->type == HDMI) {
-		base = (void __iomem *)ioremap(0xC0440000, 0x2A000);
-		hdmi = (void __iomem *)ioremap(0xC0400500, 0x200);
 
-		// hdmi dpu ctl regs
-		writel(0x00, base + 0x560);
-		writel(0x01, base + 0x56c);
-		// writel(0x00, base + 0x58c);
+	base = (void __iomem *)ioremap(0xC0440000, 0x2A000);
+	hdmi = (void __iomem *)ioremap(0xC0400500, 0x200);
 
-		// hdmi dpu int regs
-		writel(0x00, base + 0x910);
-		writel(0x00, base + 0x938);
-		//writel(0x00, base + 0x960);
+	// hdmi dpu ctl regs
+	writel(0x00, base + 0x560);
+	writel(0x01, base + 0x56c);
+	// writel(0x00, base + 0x58c);
 
-		// hdmi close pll clock
-		writel(0x00, hdmi + 0xe4);
+	// hdmi dpu int regs
+	writel(0x00, base + 0x910);
+	writel(0x00, base + 0x938);
+	//writel(0x00, base + 0x960);
 
-		value = readl_relaxed(base + 0x910);
-		DRM_DEBUG("%s hdmi int reg4 0x910:0x%x\n", __func__, value);
-		value = readl_relaxed(base + 0x938);
-		DRM_DEBUG("%s hdmi int reg14 0x938:0x%x\n", __func__, value);
-		value = readl_relaxed(base + 0x960);
-		DRM_DEBUG("%s hdmi int reg24 0x960:0x%x\n", __func__, value);
-		value = readl_relaxed(base + 0x560);
-		DRM_DEBUG("%s hdmi ctl reg24 0x560:0x%x\n", __func__, value);
-		value = readl_relaxed(base + 0x56c);
-		DRM_DEBUG("%s hdmi ctl reg27 0x56c:0x%x\n", __func__, value);
-		value = readl_relaxed(base + 0x58c);
-		DRM_DEBUG("%s hdmi ctl reg35 0x58c:0x%x\n", __func__, value);
+	// hdmi close pll clock
+	writel(0x00, hdmi + 0xe4);
 
-		udelay(100);
-		iounmap(base);
-		iounmap(hdmi);
-	} else if (dpu->type == DSI) {
-		base = (void __iomem *)ioremap(0xc0340000, 0x2A000);
+	value = readl_relaxed(base + 0x910);
+	DRM_DEBUG("%s hdmi int reg4 0x910:0x%x\n", __func__, value);
+	value = readl_relaxed(base + 0x938);
+	DRM_DEBUG("%s hdmi int reg14 0x938:0x%x\n", __func__, value);
+	value = readl_relaxed(base + 0x960);
+	DRM_DEBUG("%s hdmi int reg24 0x960:0x%x\n", __func__, value);
+	value = readl_relaxed(base + 0x560);
+	DRM_DEBUG("%s hdmi ctl reg24 0x560:0x%x\n", __func__, value);
+	value = readl_relaxed(base + 0x56c);
+	DRM_DEBUG("%s hdmi ctl reg27 0x56c:0x%x\n", __func__, value);
+	value = readl_relaxed(base + 0x58c);
+	DRM_DEBUG("%s hdmi ctl reg35 0x58c:0x%x\n", __func__, value);
 
-		// mipi dsi dpu ctl regs
-		writel(0x00, base + 0x560);
-		writel(0x01, base + 0x56c);
-		// writel(0x00, base + 0x58c);
-
-		// mipi dsi dpu int regs
-		writel(0x00, base + 0x910);
-		writel(0x00, base + 0x938);
-		//writel(0x00, base + 0x960);
-
-		value = readl_relaxed(base + 0x910);
-		DRM_DEBUG("%s mipi dsi int reg4 0x910:0x%x\n", __func__, value);
-		value = readl_relaxed(base + 0x938);
-		DRM_DEBUG("%s mipi dsi int reg14 0x938:0x%x\n", __func__, value);
-		value = readl_relaxed(base + 0x960);
-		DRM_DEBUG("%s mipi dsi int reg24 0x960:0x%x\n", __func__, value);
-		value = readl_relaxed(base + 0x560);
-		DRM_DEBUG("%s mipi dsi ctl reg24 0x560:0x%x\n", __func__, value);
-		value = readl_relaxed(base + 0x56c);
-		DRM_DEBUG("%s mipi dsi ctl reg27 0x56c:0x%x\n", __func__, value);
-		value = readl_relaxed(base + 0x58c);
-		DRM_DEBUG("%s mipi dsi ctl reg35 0x58c:0x%x\n", __func__, value);
-
-		udelay(100);
-		iounmap(base);
-	} else {
-		return 0;
-	}
+	udelay(100);
+	iounmap(base);
+	iounmap(hdmi);
 
 	return 0;
 }
@@ -558,18 +459,12 @@ static int dpu_enable_clocks(struct spacemit_dpu *dpu)
 	struct spacemit_drm_private *priv;
 	struct spacemit_hw_device *hwdev;
 
-	DRM_DEBUG("%s() type %d\n", __func__, dpu->type);
+	DRM_DEBUG("%s()\n", __func__);
 
 	if (dpu->logo_booton) {
-		if (dpu->type == HDMI) {
-			clk_prepare_enable(clk_ctx->hmclk);
-		} else if (dpu->type == DSI) {
-			clk_prepare_enable(clk_ctx->pxclk);
-			clk_prepare_enable(clk_ctx->mclk);
-			clk_prepare_enable(clk_ctx->hclk);
-			clk_prepare_enable(clk_ctx->escclk);
-			clk_prepare_enable(clk_ctx->bitclk);
-		}
+
+		clk_prepare_enable(clk_ctx->hmclk);
+
 		udelay(10);
 
 		return 0;
@@ -578,81 +473,22 @@ static int dpu_enable_clocks(struct spacemit_dpu *dpu)
 	priv = dpu->crtc.dev->dev_private;
 	hwdev = priv->hwdev;
 
-	if (hwdev->is_hdmi) {
-		clk_prepare_enable(clk_ctx->hmclk);
+	clk_prepare_enable(clk_ctx->hmclk);
 
-		clk_val = clk_get_rate(clk_ctx->hmclk);
-		if(clk_val != DPU_MCLK_DEFAULT){
-			clk_val = clk_round_rate(clk_ctx->hmclk, DPU_MCLK_DEFAULT);
-			if (dpu_mclk_exclusive_get()) {
-				clk_set_rate(clk_ctx->hmclk, clk_val);
-				DRM_DEBUG("set hdmi mclk=%lld\n", clk_val);
-				dpu_mclk_exclusive_put();
-			}
+	clk_val = clk_get_rate(clk_ctx->hmclk);
+	if (clk_val != DPU_MCLK_DEFAULT) {
+		clk_val = clk_round_rate(clk_ctx->hmclk, DPU_MCLK_DEFAULT);
+		if (dpu_mclk_exclusive_get()) {
+			clk_set_rate(clk_ctx->hmclk, clk_val);
+			DRM_DEBUG("set hdmi mclk=%lld\n", clk_val);
+			dpu_mclk_exclusive_put();
 		}
-
-		clk_val = clk_get_rate(clk_ctx->hmclk);
-		DRM_DEBUG("get hdmi mclk=%lld\n", clk_val);
-
-		udelay(10);
-	} else {
-		clk_prepare_enable(clk_ctx->pxclk);
-		clk_prepare_enable(clk_ctx->mclk);
-		clk_prepare_enable(clk_ctx->hclk);
-		clk_prepare_enable(clk_ctx->escclk);
-		clk_prepare_enable(clk_ctx->bitclk);
-
-		set_clk_val = mode->clock * 1000;
-		DRM_INFO("pxclk set_clk_val %lld\n", set_clk_val);
-
-		if (set_clk_val) {
-			set_clk_val = clk_round_rate(clk_ctx->pxclk, set_clk_val);
-			clk_val = clk_get_rate(clk_ctx->pxclk);
-			if(clk_val != set_clk_val){
-				clk_set_rate(clk_ctx->pxclk, set_clk_val);
-				DRM_DEBUG("set pxclk=%lld\n", set_clk_val);
-			}
-		}
-
-		clk_val = clk_get_rate(clk_ctx->mclk);
-		if(clk_val != DPU_MCLK_DEFAULT){
-			clk_val = clk_round_rate(clk_ctx->mclk, DPU_MCLK_DEFAULT);
-			if (dpu_mclk_exclusive_get()) {
-				clk_set_rate(clk_ctx->mclk, clk_val);
-				DRM_DEBUG("set mclk=%lld\n", clk_val);
-				dpu_mclk_exclusive_put();
-			}
-		}
-
-		clk_val = clk_get_rate(clk_ctx->escclk);
-		set_clk_val = dpu->escclk;
-		if(clk_val != set_clk_val){
-			clk_val = clk_round_rate(clk_ctx->escclk, set_clk_val);
-			clk_set_rate(clk_ctx->escclk, clk_val);
-			DRM_DEBUG("set escclk=%lld\n", clk_val);
-		}
-
-		clk_val = clk_get_rate(clk_ctx->bitclk);
-		set_clk_val = dpu->bitclk;
-		if(clk_val != set_clk_val){
-			clk_val = clk_round_rate(clk_ctx->bitclk, set_clk_val);
-			clk_set_rate(clk_ctx->bitclk, clk_val);
-			DRM_DEBUG("set bitclk=%lld\n", clk_val);
-		}
-
-		clk_val = clk_get_rate(clk_ctx->pxclk);
-		DRM_DEBUG("get pxclk=%lld\n", clk_val);
-		clk_val = clk_get_rate(clk_ctx->mclk);
-		DRM_DEBUG("get mclk=%lld\n", clk_val);
-		clk_val = clk_get_rate(clk_ctx->hclk);
-		DRM_DEBUG("get hclk=%lld\n", clk_val);
-		clk_val = clk_get_rate(clk_ctx->escclk);
-		DRM_DEBUG("get escclk=%lld\n", clk_val);
-		clk_val = clk_get_rate(clk_ctx->bitclk);
-		DRM_DEBUG("get bitclk=%lld\n", clk_val);
-
-		udelay(10);
 	}
+
+	clk_val = clk_get_rate(clk_ctx->hmclk);
+	DRM_DEBUG("get hdmi mclk=%lld\n", clk_val);
+
+	udelay(10);
 
 	trace_dpu_enable_clocks(dpu->dev_id);
 
@@ -665,36 +501,21 @@ static int dpu_disable_clocks(struct spacemit_dpu *dpu)
 	struct spacemit_drm_private *priv;
 	struct spacemit_hw_device *hwdev;
 
-	DRM_DEBUG("%s() type %d\n", __func__, dpu->type);
+	DRM_DEBUG("%s()\n", __func__);
 
 	trace_dpu_disable_clocks(dpu->dev_id);
 
 	if (dpu->logo_booton) {
 		dpu_finish_uboot(dpu);
-		if (dpu->type == HDMI) {
-			clk_disable_unprepare(clk_ctx->hmclk);
-		} else if (dpu->type == DSI) {
-			clk_disable_unprepare(clk_ctx->pxclk);
-			clk_disable_unprepare(clk_ctx->mclk);
-			clk_disable_unprepare(clk_ctx->hclk);
-			clk_disable_unprepare(clk_ctx->escclk);
-			clk_disable_unprepare(clk_ctx->bitclk);
-		}
+		clk_disable_unprepare(clk_ctx->hmclk);
+
 		return 0;
 	}
 
 	priv = dpu->crtc.dev->dev_private;
 	hwdev = priv->hwdev;
 
-	if (hwdev->is_hdmi) {
-		clk_disable_unprepare(clk_ctx->hmclk);
-	} else {
-		clk_disable_unprepare(clk_ctx->pxclk);
-		clk_disable_unprepare(clk_ctx->mclk);
-		clk_disable_unprepare(clk_ctx->hclk);
-		clk_disable_unprepare(clk_ctx->escclk);
-		clk_disable_unprepare(clk_ctx->bitclk);
-	}
+	clk_disable_unprepare(clk_ctx->hmclk);
 
 	return 0;
 }
@@ -711,7 +532,7 @@ u8 spacemit_plane_hw_get_format_id(u32 format)
 	return SPACEMIT_DPU_INVALID_FORMAT_ID;
 }
 
-static bool parsr_afbc_modifier(uint64_t modifier, uint8_t* tile_type, uint8_t* block_size, uint8_t* yuv_transform, uint8_t* split_mode)
+static bool parsr_afbc_modifier(uint64_t modifier, uint8_t *tile_type, uint8_t *block_size, uint8_t *yuv_transform, uint8_t *split_mode)
 {
 	uint64_t super_block_size = modifier & AFBC_FORMAT_MOD_BLOCK_SIZE_MASK;
 
@@ -720,7 +541,7 @@ static bool parsr_afbc_modifier(uint64_t modifier, uint8_t* tile_type, uint8_t* 
 	} else if (block_size && (super_block_size == AFBC_FORMAT_MOD_BLOCK_SIZE_32x8)) {
 		*block_size = 1;
 	} else {
-		DRM_ERROR("unsupport modifier = 0x%llu, super_block_size = 0x%llu, dpu support only 16x16 and 32x8!\n", modifier, super_block_size);
+		DRM_ERROR("unsupport modifier = 0x%llx, super_block_size = 0x%llx, dpu support only 16x16 and 32x8!\n", modifier, super_block_size);
 		return false;
 	}
 
@@ -739,7 +560,8 @@ static bool parsr_afbc_modifier(uint64_t modifier, uint8_t* tile_type, uint8_t* 
 	return true;
 }
 
-void spacemit_update_csc_matrix(struct drm_plane *plane, struct drm_plane_state *old_state){
+void spacemit_update_csc_matrix(struct drm_plane *plane, struct drm_plane_state *old_state)
+{
 	struct spacemit_plane_state *spacemit_plane_state = to_spacemit_plane_state(plane->state);
 	u32 rdma_id = spacemit_plane_state->rdma_id;
 	u32 module_base;
@@ -750,7 +572,7 @@ void spacemit_update_csc_matrix(struct drm_plane *plane, struct drm_plane_state 
 
 	module_base = RDMA0_BASE_ADDR + rdma_id * RDMA_SIZE;
 
-	if ((color_encoding != old_state->color_encoding) || (color_range != old_state->color_range)){
+	if ((color_encoding != old_state->color_encoding) || (color_range != old_state->color_range)) {
 		value = (spacemit_yuv2rgb_coefs[color_encoding][color_range][0] & 0x3FFF) | ((spacemit_yuv2rgb_coefs[color_encoding][color_range][1] & 0x3FFF) << 14);
 		write_to_cmdlist(priv, RDMA_PATH_X_REG, module_base, CSC_MATRIX0, value);
 		value = (spacemit_yuv2rgb_coefs[color_encoding][color_range][2] & 0x3FFF) | ((spacemit_yuv2rgb_coefs[color_encoding][color_range][3] & 0x3FFF) << 14);
@@ -848,8 +670,9 @@ static void saturn_conf_scaler_x(struct drm_plane_state *state)
 	write_to_cmdlist(priv, RDMA_PATH_X_REG, module_base, LEFT_SCL_RATIO_V, 0x1 << 20 | ver_delta_phase);
 }
 
-static void saturn_conf_scaler_coefs(struct drm_plane *plane, struct spacemit_plane_state *spacemit_pstate){
-	struct drm_property_blob * blob = spacemit_pstate->scale_coefs_blob_prop;
+void saturn_conf_scaler_coefs(struct drm_plane *plane, struct spacemit_plane_state *spacemit_pstate)
+{
+	struct drm_property_blob *blob = spacemit_pstate->scale_coefs_blob_prop;
 	struct spacemit_drm_private *priv = plane->dev->dev_private;
 	int scale_num = 192;
 	u32 module_base;
@@ -863,13 +686,13 @@ static void saturn_conf_scaler_coefs(struct drm_plane *plane, struct spacemit_pl
 	/* Config SCALER scaling regs */
 	module_base = SCALER0_ONLINE_BASE_ADDR + spacemit_pstate->scaler_id * SCALER_SIZE;
 
-	if (blob){
+	if (blob) {
 		/* should never happen */
 		if (unlikely(blob->length != scale_num))
 			DRM_ERROR("The blob length %ld is not correct scale_num %d\n", blob->length, scale_num);
 
 		coef_data = (int *)blob->data;
-		if (unlikely(NULL == coef_data)){
+		if (unlikely(coef_data == NULL)) {
 			DRM_ERROR("The coef data is NULL\n");
 			return;
 		}
@@ -1004,26 +827,6 @@ void spacemit_plane_update_hw_channel(struct drm_plane *plane)
 	crtc_x = state->crtc_x;
 	crtc_y = state->crtc_y;
 
-	if (spacemit_plane_state->is_crop) {
-
-		// src_w = state->src_w >> 16;
-		src_h = state->src_h >> 16;
-		src_x = state->src_x >> 16;
-		src_y = state->src_y >> 16;
-
-		// crtc_w = state->crtc_w;
-		crtc_h = state->crtc_h;
-		// crtc_x = state->crtc_x;
-		// crtc_y = state->crtc_y;
-
-		src_w = spacemit_plane_state->src_crop_w;
-		crtc_w = spacemit_plane_state->dst_crop_w;
-
-		crtc_x = spacemit_plane_state->dst_crop_x;
-		crtc_y = spacemit_plane_state->dst_crop_y;
-
-	}
-
 	if (rdma_id == RDMA_INVALID_ID)
 		solid_en = true;
 
@@ -1068,7 +871,7 @@ void spacemit_plane_update_hw_channel(struct drm_plane *plane)
 			spacemit_set_afbc_info(priv, fb->modifier, module_base);
 		}
 
-		if (spacemit_plane_state->use_scl){
+		if (spacemit_plane_state->use_scl) {
 			saturn_conf_scaler_x(state);
 
 			/*scaling mismatch gpu render result without these coefs*/
@@ -1107,7 +910,7 @@ void spacemit_plane_update_hw_channel(struct drm_plane *plane)
 
 	/* enable composer and bind RDMA */
 	base = CMP_BASE_ADDR(channel);
-	switch(spacemit_plane->hw_pid) {
+	switch (spacemit_plane->hw_pid) {
 	case 0:
 		CONFIG_HW_COMPOSER_LAYER(0);
 		break;
@@ -1141,15 +944,14 @@ void spacemit_plane_update_hw_channel(struct drm_plane *plane)
 void spacemit_plane_disable_hw_channel(struct drm_plane *plane, struct drm_plane_state *old_state)
 {
 	struct spacemit_plane *p = to_spacemit_plane(plane);
-	u8 channel = crtc_to_dpu(old_state->crtc)->dev_id;
+	u8 channel = p->dev_id;
 	u32 base = CMP_BASE_ADDR(channel);
-	u32 rdma_id = to_spacemit_plane_state(old_state)->rdma_id;
 	struct spacemit_drm_private *priv = plane->dev->dev_private;
 	struct spacemit_hw_device *hwdev = priv->hwdev;
 
-	DRM_DEBUG("%s() layer_id = %u rdma_id:%d\n", __func__, p->hw_pid, rdma_id);
+	DRM_DEBUG("%s() channel %d layer_id = %u\n", __func__, p->dev_id, p->hw_pid);
 
-	trace_spacemit_plane_disable_hw_channel(p->hw_pid, rdma_id);
+	trace_spacemit_plane_disable_hw_channel(p->hw_pid);
 
 	switch (p->hw_pid) {
 	case 0:
@@ -1210,7 +1012,8 @@ static u32 saturn_conf_dpuctrl_scaling(struct spacemit_dpu *dpu)
 	return scl_en;
 }
 
-void spacemit_update_hdr_matrix(struct drm_plane *plane, struct spacemit_plane_state *spacemit_pstate){
+void spacemit_update_hdr_matrix(struct drm_plane *plane, struct spacemit_plane_state *spacemit_pstate)
+{
 
 }
 
@@ -1239,13 +1042,13 @@ void saturn_conf_dpuctrl_color_matrix(struct spacemit_dpu *dpu, struct drm_crtc_
 	struct spacemit_hw_device *hwdev = priv->hwdev;
 	struct drm_crtc_state *state = dpu->crtc.state;
 	struct spacemit_crtc_state *spacemit_state = to_spacemit_crtc_state(state);
-	struct drm_property_blob * blob = spacemit_state->color_matrix_blob_prop;
+	struct drm_property_blob *blob = spacemit_state->color_matrix_blob_prop;
 	int *color_matrix;
 
 	/*For color matrix, if no update from user space,
 	we keep the original configuration, do not change the value of any color matix register*/
-	if (blob){
-		color_matrix = (int*)blob->data;
+	if (blob) {
+		color_matrix = (int *)blob->data;
 
 		dpu_write_reg(hwdev, OUTCTRL_PROC_X_REG, PP2_BASE_ADDR, m_npost_proc_en, 1);
 		dpu_write_reg(hwdev, OUTCTRL_PROC_X_REG, PP2_BASE_ADDR, m_nendmatrix_en, 1);
@@ -1298,7 +1101,7 @@ static void saturn_conf_dpuctrl(struct drm_crtc *crtc,
 		/* TODO */
 		break;
 	default:
-		DRM_ERROR("%s, dpu_id %d is invalid!\n", __func__, dpu->dev_id);
+		DRM_ERROR("%s, dpu id %d is invalid!\n", __func__, dpu->dev_id);
 		break;
 	}
 }
@@ -1356,7 +1159,7 @@ static void saturn_ctrl_cfg_ready(struct spacemit_dpu *dpu, bool enable)
 		dpu_write_reg(hwdev, DPU_CTL_REG, base, ctl4_nml_cfg_rdy, enable ? 1 : 0);
 		break;
 	default:
-		DRM_ERROR("id is invalid!\n");
+		DRM_ERROR("dpu id is invalid!\n");
 		break;
 	}
 }
@@ -1383,23 +1186,9 @@ static void saturn_ctrl_sw_start(struct spacemit_dpu *dpu, bool enable)
 		dpu_write_reg_w1c(hwdev, DPU_CTL_REG, base, ctl3_sw_start, enable ? 1 : 0);
 		break;
 	default:
-		DRM_ERROR("id is invalid!\n");
+		DRM_ERROR("dpu id is invalid!\n");
 		break;
 	}
-}
-
-static void saturn_wb_disable(struct spacemit_dpu *dpu)
-{
-	struct spacemit_drm_private *priv = dpu->crtc.dev->dev_private;
-	struct spacemit_hw_device *hwdev = priv->hwdev;
-
-	dpu_write_reg(hwdev, DPU_CTL_REG, DPU_CTRL_BASE_ADDR, ctl2_nml_wb_en, 0);
-	dpu_write_reg(hwdev, DPU_CTL_REG, DPU_CTRL_BASE_ADDR, ctl2_nml_cfg_rdy, 1);
-}
-
-static void saturn_wb_config(struct spacemit_dpu *dpu)
-{
-
 }
 
 static u32 dpu_get_version(struct spacemit_dpu *dpu)
@@ -1407,13 +1196,14 @@ static u32 dpu_get_version(struct spacemit_dpu *dpu)
 	return 0;
 }
 
-static void saturn_init_csc(struct spacemit_dpu *dpu){
+static void saturn_init_csc(struct spacemit_dpu *dpu)
+{
 	struct spacemit_drm_private *priv = dpu->crtc.dev->dev_private;
 	struct spacemit_hw_device *hwdev = priv->hwdev;
 	u32 module_base;
 	int i = 0;
 
-	for(i = 0; i < hwdev->rdma_nums; i++){
+	for (i = 0; i < hwdev->rdma_nums; i++) {
 		module_base = RDMA0_BASE_ADDR + i * RDMA_SIZE;
 		dpu_write_reg(hwdev, RDMA_PATH_X_REG, module_base, b.csc_matrix00, spacemit_yuv2rgb_coefs[DRM_COLOR_YCBCR_BT709][DRM_COLOR_YCBCR_LIMITED_RANGE][0] & 0x3FFF);
 		dpu_write_reg(hwdev, RDMA_PATH_X_REG, module_base, b.csc_matrix01, spacemit_yuv2rgb_coefs[DRM_COLOR_YCBCR_BT709][DRM_COLOR_YCBCR_LIMITED_RANGE][1] & 0x3FFF);
@@ -1468,7 +1258,9 @@ static void saturn_init_regs(struct spacemit_dpu *dpu)
 	dpu_write_reg(hwdev, OUTCTRL_TOP_X_REG, base, sbs_en, 0);
 	dpu_write_reg(hwdev, OUTCTRL_TOP_X_REG, base, split_en, 0);
 	dpu_write_reg(hwdev, OUTCTRL_TOP_X_REG, base, narrow_yuv_en, 0);
+
 	dpu_write_reg(hwdev, OUTCTRL_TOP_X_REG, base, cmd_screen, 0);
+
 	dpu_write_reg(hwdev, OUTCTRL_TOP_X_REG, base, frame_timing_en, 1);
 	dpu_write_reg(hwdev, OUTCTRL_TOP_X_REG, base, split_overlap, 0);
 	dpu_write_reg(hwdev, OUTCTRL_TOP_X_REG, base, hblank, 0);
@@ -1497,14 +1289,17 @@ static void saturn_init_regs(struct spacemit_dpu *dpu)
 	dpu_write_reg(hwdev, OUTCTRL_TOP_X_REG, base, eof1_irq_mask, 1);
 	dpu_write_reg(hwdev, OUTCTRL_TOP_X_REG, base, underflow1_irq_mask, 1);
 
-	// if (hwdev->is_hdmi) {
-	// 	dpu_write_reg(hwdev, OUTCTRL_TOP_X_REG, base, disp_ready_man_en, 1);
-	// 	value = dpu_read_reg(hwdev, OUTCTRL_TOP_X_REG, base, value32[31]);
-	// 	DRM_INFO("%s read OUTCTRL_TOP_X_REG value32[31] 0x%x", __func__, value);
-	// }
+
+	// dpu_write_reg(hwdev, OUTCTRL_TOP_X_REG, base, disp_ready_man_en, 1);
+	// value = dpu_read_reg(hwdev, OUTCTRL_TOP_X_REG, base, value32[31]);
+	// DRM_INFO("%s read OUTCTRL_TOP_X_REG value32[31] 0x%x", __func__, value);
+
+
 
 	dpu_write_reg(hwdev, DPU_CTL_REG, DPU_CTRL_BASE_ADDR, ctl2_video_mod, 0x1);
+
 	dpu_write_reg(hwdev, DPU_CTL_REG, DPU_CTRL_BASE_ADDR, ctl2_dbg_mod, 0x0);
+
 	/*
 	 * ctl2_timing_inter0 use default value
 	 * ctl2_timing_inter1 = 2 * ⌈fmclk / fdscclk⌉, set 0xf as max value
@@ -1592,16 +1387,15 @@ static int dpu_init(struct spacemit_dpu *dpu)
 	unsigned int timeout = 1000;
 	struct spacemit_drm_private *priv = dpu->crtc.dev->dev_private;
 	struct spacemit_hw_device *hwdev = priv->hwdev;
-#ifdef CONFIG_SPACEMIT_FPGA
-	void __iomem *addr = (void __iomem *)ioremap(0xD4282800, 100);
-#endif
+
 	void __iomem *ciu_addr = (void __iomem *)ioremap(0xD4282C00, 0x200);
+	void __iomem *spare_addr = (void __iomem *)ioremap(0xC0300300, 0x20);
 	u32 value;
 
 	DRM_INFO("%s \n", __func__);
 	trace_dpu_init(dpu->dev_id);
 
-	while(timeout) {
+	while (timeout) {
 		if (dpu_read_reg(hwdev, DPU_CTL_REG, DPU_CTRL_BASE_ADDR, value32[27]) == 0)
 			break;
 		udelay(100);
@@ -1616,7 +1410,7 @@ static int dpu_init(struct spacemit_dpu *dpu)
 	writel(0xFF65FF05, addr + 0x4c);
 #endif
 
-	// modified hdmi and mipi dsi qos
+	// modified hdmi qos
 	value = readl_relaxed(ciu_addr + 0x011c);
 	DRM_DEBUG("%s ciu offset 0x011c:0x%x\n", __func__, value);
 	value = readl_relaxed(ciu_addr + 0x0124);
@@ -1625,6 +1419,9 @@ static int dpu_init(struct spacemit_dpu *dpu)
 	udelay(2);
 	value = readl_relaxed(ciu_addr + 0x0124);
 	DRM_DEBUG("%s ciu offset 0x0124:0x%x\n", __func__, value);
+
+
+	iounmap(spare_addr);
 
 	saturn_init_regs(dpu);
 	saturn_setup_dma_top(dpu);
@@ -1648,21 +1445,16 @@ static uint32_t dpu_isr(struct spacemit_dpu *dpu)
 	struct spacemit_drm_private *priv = dpu->crtc.dev->dev_private;
 	struct spacemit_hw_device *hwdev = priv->hwdev;
 	static bool flip_done[DP_MAX_DEVICES] = {false};
-	struct drm_writeback_connector *wb_conn = &dpu->wb_connector;
 	u8 channel = dpu->dev_id;
 	int flip_id;
 
-	if (hwdev->is_hdmi) {
-		flip_id = SATURN_HDMI;
-	} else {
-		flip_id = SATURN_LE;
-	}
+	flip_id = SATURN_HDMI;
 
 	trace_dpu_isr(dpu->dev_id);
 
 	if (dpu->dev_id == ONLINE2) {
 		irq_raw = dpu_read_reg(hwdev, DPU_INTP_REG, base, v.dpu_int_reg_24);
-		trace_dpu_isr_status("ONLINE2", irq_raw );
+		trace_dpu_isr_status("ONLINE2", irq_raw);
 		/* underrun */
 		if (irq_raw & DPU_INT_FRM_TIMING_UNFLOW) {
 			dpu_write_reg_w1c(hwdev, DPU_INTP_REG, base, v.dpu_int_reg_14, DPU_INT_FRM_TIMING_UNFLOW);
@@ -1703,8 +1495,8 @@ static uint32_t dpu_isr(struct spacemit_dpu *dpu)
 		/* vsync */
 		if (irq_raw & DPU_INT_FRM_TIMING_VSYNC) {
 			struct drm_crtc *crtc = &dpu->crtc;
+
 			dpu_write_reg_w1c(hwdev, DPU_INTP_REG, base, v.dpu_int_reg_14, DPU_INT_FRM_TIMING_VSYNC);
-			trace_u64_data("dpu name", (u64)hwdev->is_hdmi);
 			trace_dpu_isr_status("vsync", irq_raw & DPU_INT_FRM_TIMING_VSYNC);
 			drm_crtc_handle_vblank(crtc);
 
@@ -1725,14 +1517,6 @@ static uint32_t dpu_isr(struct spacemit_dpu *dpu)
 				}
 				spin_unlock(&drm->event_lock);
 			}
-			dpu_dump_fps(dpu);
-		}
-		/* wb done */
-		if (irq_raw & DPU_INT_WB_DONE) {
-			dpu_write_reg_w1c(hwdev, DPU_INTP_REG, base, b.onl2_nml_wb_done_int_sts, irq_raw);
-			dpu_write_reg_w1c(hwdev, DPU_INTP_REG, base, v.dpu_int_reg_14, DPU_INT_WB_DONE);
-			saturn_wb_disable(dpu);
-			drm_writeback_signal_completion(wb_conn, 0);
 		}
 		/* rest irq status */
 		if (irq_raw & DPU_REST_INT_BITS)
@@ -1744,11 +1528,6 @@ static uint32_t dpu_isr(struct spacemit_dpu *dpu)
 		irq_raw = dpu_read_reg(hwdev, DPU_INTP_REG, base, b.offl0_cfg_rdy_clr_int_raw);
 		if (irq_raw)
 			dpu_write_reg_w1c(hwdev, DPU_INTP_REG, base, b.offl0_cfg_rdy_clr_int_sts, 1);
-
-		/*wb*/
-		irq_raw = dpu_read_reg(hwdev, DPU_INTP_REG, base, b.offl0_wb_frm_done_int_raw);
-		if (irq_raw)
-			dpu_write_reg_w1c(hwdev, DPU_INTP_REG, base, b.offl0_wb_frm_done_int_sts, irq_raw);
 	}
 
 	return int_mask;
@@ -1758,6 +1537,7 @@ static void dpu_run(struct drm_crtc *crtc,
 		    struct drm_crtc_state *old_state)
 {
 	struct spacemit_dpu *dpu = crtc_to_dpu(crtc);
+
 	trace_dpu_run(dpu->dev_id);
 
 	/* config dpuctrl modules */
@@ -1768,7 +1548,7 @@ static void dpu_run(struct drm_crtc *crtc,
 	saturn_ctrl_cfg_ready(dpu, true);
 
 	if (unlikely(dpu->is_1st_f)) {
-		DRM_INFO("DPU type %d id %d Start!\n", dpu->type, dpu->dev_id);
+		DRM_INFO("DPU id %d Start!\n", dpu->dev_id);
 		dpu->is_1st_f = false;
 		saturn_ctrl_sw_start(dpu, true);
 	}
@@ -1791,7 +1571,7 @@ static void dpu_stop(struct spacemit_dpu *dpu)
 
 	trace_dpu_stop(dpu->dev_id);
 
-	while(timeout) {
+	while (timeout) {
 		if (dpu_read_reg(hwdev, DPU_CTL_REG, DPU_CTRL_BASE_ADDR, value32[27]) == 0)
 			break;
 		udelay(10);
@@ -1807,7 +1587,7 @@ static void dpu_stop(struct spacemit_dpu *dpu)
 	dpu_write_reg(hwdev, DPU_CTL_REG, DPU_CTRL_BASE_ADDR, ctl2_nml_cfg_rdy, 0x1);
 
 	timeout = DPU_STOP_TIMEOUT;
-	while(timeout) {
+	while (timeout) {
 		if (dpu_read_reg(hwdev, DPU_CTL_REG, DPU_CTRL_BASE_ADDR, value32[27]) & 1) {
 			udelay(10);
 			timeout--;
@@ -1855,7 +1635,6 @@ static struct dpu_core_ops dpu_saturn_ops = {
 	.cal_layer_fbcmem_size = saturn_cal_layer_fbcmem_size,
 	.calc_plane_mclk_bw = dpu_calc_plane_mclk_bw,
 	.adjust_rdma_fbcmem = saturn_adjust_rdma_fbcmem,
-	.wb_config = saturn_wb_config,
 };
 
 static struct ops_entry entry = {

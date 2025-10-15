@@ -33,9 +33,8 @@ static inline void spacemit_dmmu_fill_pgtable(uint32_t *ttbr, struct sg_table *s
 		*ttbr++ = temp;
 }
 
-int spacemit_dmmu_map(struct drm_plane *plane, struct dpu_mmu_tbl *mmu_tbl, u8 tbu_id, bool wb)
+int spacemit_dmmu_map(struct drm_framebuffer *fb, struct dpu_mmu_tbl *mmu_tbl, u8 tbu_id)
 {
-	struct drm_framebuffer *fb = plane->state->fb;
 	struct spacemit_drm_private *priv = fb->dev->dev_private;
 	struct spacemit_hw_device *hwdev = priv->hwdev;
 	const struct drm_format_info *format = NULL;
@@ -50,7 +49,7 @@ int spacemit_dmmu_map(struct drm_plane *plane, struct dpu_mmu_tbl *mmu_tbl, u8 t
 	format = fb->format;
 	sgt = to_spacemit_obj(fb->obj[0])->sgt;
 
-	if (!wb && priv->contig_mem) {
+	if (priv->contig_mem) {
 		phys_addr_t contig_pa = sg_dma_address(sgt->sgl);
 
 		write_to_cmdlist(priv, MMU_REG, MMU_BASE_ADDR, TBU[tbu_id].TBU_Ctrl, 0x0);
@@ -105,34 +104,22 @@ int spacemit_dmmu_map(struct drm_plane *plane, struct dpu_mmu_tbl *mmu_tbl, u8 t
 
 	val = 0x1 | (fbc_mode << 1) | ((fbc_mode ? 1 : plane_num - 1) << 2);
 	/* Config hw regs */
-	if (wb) {
-		val = val | (DPU_QOS_LOW << 8);
-		CONFIG_WB_ADDR_REG(hwdev, 0, tbu.tbu_va[0]);
-		CONFIG_WB_ADDR_REG(hwdev, 1, tbu.tbu_va[1]);
-		dpu_write_reg(hwdev, WB_TOP_REG, WB0_TOP_BASE_ADDR, \
-				wb_wdma_stride, (fb->pitches[1] << 16) | fb->pitches[0]);
-		CONFIG_TBU_REGS(priv, hwdev, 0, tbu_id);
-		CONFIG_TBU_REGS(priv, hwdev, 1, tbu_id);
-		CONFIG_TBU_REGS(priv, hwdev, 2, tbu_id);
-		dpu_write_reg(hwdev, MMU_REG, MMU_BASE_ADDR, v.TBU[tbu_id].TBU_Ctrl, val);
-	} else {
-		val = val | (DPU_QOS_URGENT << 8);
+	val = val | (DPU_QOS_URGENT << 8);
 #if defined (CONFIG_ARM64) || defined (CONFIG_ARM_LPAE) || defined (CONFIG_ARCH_RV64I)
-		CONFIG_RDMA_ADDR_REG(priv, 0, rdma_id, tbu.tbu_va[0]);
-		CONFIG_RDMA_ADDR_REG(priv, 1, rdma_id, tbu.tbu_va[1]);
-		CONFIG_RDMA_ADDR_REG(priv, 2, rdma_id, tbu.tbu_va[2]);
+	CONFIG_RDMA_ADDR_REG(priv, 0, rdma_id, tbu.tbu_va[0]);
+	CONFIG_RDMA_ADDR_REG(priv, 1, rdma_id, tbu.tbu_va[1]);
+	CONFIG_RDMA_ADDR_REG(priv, 2, rdma_id, tbu.tbu_va[2]);
 #else
-		CONFIG_RDMA_ADDR_REG_32(priv, 0, rdma_id, tbu.tbu_va[0]);
-		CONFIG_RDMA_ADDR_REG_32(priv, 1, rdma_id, tbu.tbu_va[1]);
-		CONFIG_RDMA_ADDR_REG_32(priv, 2, rdma_id, tbu.tbu_va[2]);
+	CONFIG_RDMA_ADDR_REG_32(priv, 0, rdma_id, tbu.tbu_va[0]);
+	CONFIG_RDMA_ADDR_REG_32(priv, 1, rdma_id, tbu.tbu_va[1]);
+	CONFIG_RDMA_ADDR_REG_32(priv, 2, rdma_id, tbu.tbu_va[2]);
 #endif
-		write_to_cmdlist(priv, RDMA_PATH_X_REG, RDMA_BASE_ADDR(rdma_id), \
-				LEFT_RDMA_STRIDE0, (fb->pitches[1] << 16) | fb->pitches[0]);
-		CONFIG_TBU_REGS(priv, NULL, 0, tbu_id);
-		CONFIG_TBU_REGS(priv, NULL, 1, tbu_id);
-		CONFIG_TBU_REGS(priv, NULL, 2, tbu_id);
-		write_to_cmdlist(priv, MMU_REG, MMU_BASE_ADDR, TBU[tbu_id].TBU_Ctrl, val);
-	}
+	write_to_cmdlist(priv, RDMA_PATH_X_REG, RDMA_BASE_ADDR(rdma_id), \
+			LEFT_RDMA_STRIDE0, (fb->pitches[1] << 16) | fb->pitches[0]);
+	CONFIG_TBU_REGS(priv, NULL, 0, tbu_id);
+	CONFIG_TBU_REGS(priv, NULL, 1, tbu_id);
+	CONFIG_TBU_REGS(priv, NULL, 2, tbu_id);
+	write_to_cmdlist(priv, MMU_REG, MMU_BASE_ADDR, TBU[tbu_id].TBU_Ctrl, val);
 
 	return 0;
 }

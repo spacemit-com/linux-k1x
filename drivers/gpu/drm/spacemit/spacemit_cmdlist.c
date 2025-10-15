@@ -24,14 +24,16 @@ spacemit_plane_state *cl_to_spacemit_pstate(const struct cmdlist *cl)
 	return container_of(cl, struct spacemit_plane_state, cl);
 }
 
-static void print_row(struct cmdlist_row *row) {
-	u32 * p = (u32 *) row;
+static void print_row(struct cmdlist_row *row)
+{
+	u32 *p = (u32 *)row;
 	DRM_DEBUG("print_row: 0x%02x, 0x%02x, 0x%02x, 0x%02x", *p, *(p+1), *(p+2), *(p+3));
 }
 
-static int cmdlist_reg_cmp(const void * r1, const void * r2) {
-	const struct cmdlist_reg *reg1 = (const struct cmdlist_reg *) r1;
-	const struct cmdlist_reg *reg2 = (const struct cmdlist_reg *) r2;
+static int cmdlist_reg_cmp(const void *r1, const void *r2)
+{
+	const struct cmdlist_reg *reg1 = (const struct cmdlist_reg *)r1;
+	const struct cmdlist_reg *reg2 = (const struct cmdlist_reg *)r2;
 	if (reg1->offset > reg2->offset)
 		return 1;
 	else if (reg1->offset < reg2->offset)
@@ -40,15 +42,17 @@ static int cmdlist_reg_cmp(const void * r1, const void * r2) {
 		return 0;
 }
 
-static void cmdlist_reg_swap(void * r1, void * r2, int size) {
-	struct cmdlist_reg *reg1 = (struct cmdlist_reg *) r1;
-	struct cmdlist_reg *reg2 = (struct cmdlist_reg *) r2;
+static void cmdlist_reg_swap(void *r1, void *r2, int size)
+{
+	struct cmdlist_reg *reg1 = (struct cmdlist_reg *)r1;
+	struct cmdlist_reg *reg2 = (struct cmdlist_reg *)r2;
 	struct cmdlist_reg tmp = *reg1;
 	*reg1 = *reg2;
 	*reg2 = tmp;
 }
 
-void cmdlist_regs_packing(struct drm_plane *plane) {
+void cmdlist_regs_packing(struct drm_plane *plane)
+{
 	struct spacemit_dpu *dpu = crtc_to_dpu(plane->state->crtc);
 	struct spacemit_plane_state *spacemit_pstate = to_spacemit_plane_state(plane->state);
 	struct cmdlist *cl = &spacemit_pstate->cl;
@@ -104,7 +108,8 @@ void cmdlist_regs_packing(struct drm_plane *plane) {
 	DRM_DEBUG("-----cmdlist_regs_packing----- row_num = %d\n", row->module_cfg_num);
 }
 
-static inline void fill_top_row(struct cmdlist *cl) {
+static inline void fill_top_row(struct cmdlist *cl)
+{
 	struct cmdlist_header *header;
 	struct cmdlist_row *row;
 	unsigned int cl_addr_h = 0;
@@ -161,10 +166,11 @@ static inline void fill_top_row(struct cmdlist *cl) {
 		DRM_ERROR("plane%d cmdlist occupies %d bytes!\n", zpos, size);
 }
 
-void cmdlist_sort_by_group(struct drm_crtc *crtc) {
-	struct cmdlist * cur_cl;
-	struct cmdlist * p;
-	struct cmdlist * prev;
+void cmdlist_sort_by_group(struct drm_crtc *crtc)
+{
+	struct cmdlist *cur_cl;
+	struct cmdlist *p;
+	struct cmdlist *prev;
 	struct drm_plane *plane;
 	struct spacemit_dpu_rdma *rdmas = to_spacemit_crtc_state(crtc->state)->rdmas;
 	struct spacemit_drm_private *priv = crtc->dev->dev_private;
@@ -181,12 +187,11 @@ void cmdlist_sort_by_group(struct drm_crtc *crtc) {
 		if (priv->cmdlist_groups[rdma_id]) {
 			p = priv->cmdlist_groups[rdma_id];
 			prev = NULL;
-			while(p) {
+			while (p) {
 				if (cl_to_spacemit_pstate(p)->state.crtc_y < spacemit_pstate->state.crtc_y) {
 					prev = p;
 					p = p->next;
-				}
-				else
+				} else
 					break;
 			}
 			if (!prev) {
@@ -204,7 +209,8 @@ void cmdlist_sort_by_group(struct drm_crtc *crtc) {
 }
 
 void cmdlist_atomic_commit(struct drm_crtc *crtc,
-			   struct drm_crtc_state *old_state) {
+			   struct drm_crtc_state *old_state)
+{
 	int i;
 	struct cmdlist *cur_cl, *first_cl;
 	u32 val;
@@ -217,7 +223,7 @@ void cmdlist_atomic_commit(struct drm_crtc *crtc,
 		/* Shut down the rdma used in previous frame first */
 		if (old_rdmas[i].in_use) {
 			dpu_write_reg(hwdev, DPU_CTL_REG, DPU_CTRL_BASE_ADDR,
-			              dpu_ctl_reg_69[i].ctl_nml_cmdlist_rch_en, 0);
+					dpu_ctl_reg_69[i].ctl_nml_cmdlist_rch_en, 0);
 			dpu_write_reg(hwdev, CMDLIST_REG, CMDLIST_BASE_ADDR, value32[i], 0);
 		}
 
@@ -225,7 +231,7 @@ void cmdlist_atomic_commit(struct drm_crtc *crtc,
 			DRM_DEBUG("+++++cmdlist_atomic_commit+++++ cmdlist group = %d\n", i);
 			cur_cl = priv->cmdlist_groups[i];
 			first_cl = cur_cl;
-			while(cur_cl) {
+			while (cur_cl) {
 				fill_top_row(cur_cl);
 				cur_cl = cur_cl->next;
 			}
@@ -240,7 +246,7 @@ void cmdlist_atomic_commit(struct drm_crtc *crtc,
 			dpu_write_reg(hwdev, CMDLIST_REG, CMDLIST_BASE_ADDR, cmdlist_reg_14[i].cmdlist_ch_start_addrh, 0);
 #endif
 			dpu_write_reg(hwdev, DPU_CTL_REG, DPU_CTRL_BASE_ADDR,
-			              dpu_ctl_reg_69[i].ctl_nml_cmdlist_rch_en, 1);
+					dpu_ctl_reg_69[i].ctl_nml_cmdlist_rch_en, 1);
 			priv->cmdlist_groups[i] = NULL;
 		}
 	}

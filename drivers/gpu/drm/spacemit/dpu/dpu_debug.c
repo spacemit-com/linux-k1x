@@ -60,7 +60,7 @@ static dpu_reg_dump_t dpu_reg_dump_array[] = {
 	{E_RDMA_LAYER2_REG, "RDMA_LAYER2", RDMA2_BASE_ADDR, 31},
 	{E_RDMA_LAYER2_REG, "RDMA_LAYER2", RDMA2_BASE_ADDR + 0x80, 57},
 
-	{E_RDMA_LAYER3_REG, "RDMA_LAYER3" ,RDMA3_BASE_ADDR, 31},
+	{E_RDMA_LAYER3_REG, "RDMA_LAYER3", RDMA3_BASE_ADDR, 31},
 	{E_RDMA_LAYER3_REG, "RDMA_LAYER3", RDMA3_BASE_ADDR + 0x80, 57},
 
 	{E_RDMA_LAYER4_REG, "RDMA_LAYER4", RDMA4_BASE_ADDR, 46},
@@ -132,9 +132,6 @@ static dpu_reg_dump_t dpu_reg_dump_array[] = {
 	{E_PP2_REG, "PP2", PP2_BASE_ADDR, 86},
 	{E_OUTCTRL3_REG, "OUTCTRL3", OUTCTRL3_BASE_ADDR, 55},
 	{E_PP3_REG, "PP3", PP3_BASE_ADDR, 86},
-
-	{E_WB_TOP_0_REG, "WB_TOP_0", WB0_TOP_BASE_ADDR, 54},
-	{E_WB_TOP_1_REG, "WB_TOP_1", WB1_TOP_BASE_ADDR, 54},
 };
 
 static void dump_dpu_regs_by_enum(void __iomem *io_base, phys_addr_t phy_base, dpu_reg_enum reg_enum, u8 trace_dump)
@@ -168,7 +165,7 @@ static void dump_dpu_regs_by_enum(void __iomem *io_base, phys_addr_t phy_base, d
 	}
 }
 
-static bool dpu_reg_enum_valid(dpu_reg_enum reg_enum)
+bool dpu_reg_enum_valid(dpu_reg_enum reg_enum)
 {
 	int size = ARRAY_SIZE(SATURN_LE_DPU_REG_ENUM_LISTS);
 	int i = 0;
@@ -186,7 +183,7 @@ void dump_dpu_regs(struct spacemit_dpu *dpu, dpu_reg_enum reg_enum, u8 trace_dum
 	dpu_reg_enum tmp = E_DPU_TOP_REG;
 	struct spacemit_drm_private *priv = dpu->crtc.dev->dev_private;
 	struct spacemit_hw_device *hwdev = priv->hwdev;
-	void __iomem* reg_io_base = hwdev->base;
+	void __iomem *reg_io_base = hwdev->base;
 	phys_addr_t reg_phy_base = hwdev->phy_addr;
 
 	if (reg_enum > E_DPU_DUMP_ALL) {
@@ -235,7 +232,8 @@ static ssize_t gki_kernel_write(struct file *file, const void *buf, size_t count
 }
 #endif
 #define DPU_BUFFER_DUMP_FILE "/mnt/dpu_buffer_dump"
-int dpu_buffer_dump(struct drm_plane *plane) {
+int dpu_buffer_dump(struct drm_plane *plane)
+{
 	unsigned int buffer_size = 0;
 	int i = 0;
 	void *mmu_tbl_vaddr = NULL;
@@ -316,6 +314,6 @@ void dpu_dump_fps(struct spacemit_dpu *dpu)
 void dpu_underrun_wq_stop_trace(struct work_struct *work)
 {
 // #ifndef MODULE
-// 	trace_set_clr_event("dpu", NULL, false);
+//	trace_set_clr_event("dpu", NULL, false);
 // #endif
 }

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2023 Spacemit Co., Ltd.
  *
@@ -29,7 +29,6 @@ struct spacemit_hw_device {
 	u32 solid_color_shift;
 	int hdr_coef_size;
 	int scale_coef_size;
-	bool is_hdmi;
 };
 
 struct spacemit_drm_private {
@@ -45,10 +44,5 @@ struct spacemit_drm_private {
 };
 
 extern struct platform_driver spacemit_dpu_driver;
-extern struct platform_driver spacemit_dphy_driver;
-extern struct platform_driver spacemit_dsi_driver;
-
-int spacemit_wb_init(struct drm_device *drm, struct drm_crtc *crtc);
-void spacemit_wb_atomic_commit(struct drm_device *drm, struct drm_atomic_state *old_state);
 
 #endif /* _SPACEMIT_DRM_H_ */

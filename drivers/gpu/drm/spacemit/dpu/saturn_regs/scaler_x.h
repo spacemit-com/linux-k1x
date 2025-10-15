@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2023 Spacemit Co., Ltd.
  *
@@ -7,16 +7,14 @@
 #ifndef SCALER_X_REG_H
 #define SCALER_X_REG_H
 
-typedef union
-{
-	struct
-	{
+typedef union {
+	struct {
 	//REGISTER disp_scl_reg_0
-	UINT32 m_nscl_hor_enable           : 1 ;
-	UINT32 m_nscl_ver_enable           : 1 ;
-	UINT32                             : 6 ;
+	UINT32 m_nscl_hor_enable           : 1;
+	UINT32 m_nscl_ver_enable           : 1;
+	UINT32: 6;
 	UINT32 m_nscl_input_width          : 16;
-	UINT32                             : 8 ;
+	UINT32: 8;
 
 
 	//REGISTER disp_scl_reg_1
@@ -26,7 +24,7 @@ typedef union
 
 	//REGISTER disp_scl_reg_2
 	UINT32 m_nscl_output_height        : 16;
-	UINT32                             : 16;
+	UINT32: 16;
 
 
 	//REGISTER disp_scl_reg_3
@@ -34,8 +32,8 @@ typedef union
 
 
 	//REGISTER disp_scl_reg_4
-	UINT32 m_nscl_hor_init_phase_h1b   : 1 ;
-	UINT32                             : 31;
+	UINT32 m_nscl_hor_init_phase_h1b   : 1;
+	UINT32: 31;
 
 
 	//REGISTER disp_scl_reg_5
@@ -43,18 +41,18 @@ typedef union
 
 
 	//REGISTER disp_scl_reg_6
-	UINT32 m_nscl_ver_init_phase_h1b   : 1 ;
-	UINT32                             : 31;
+	UINT32 m_nscl_ver_init_phase_h1b   : 1;
+	UINT32: 31;
 
 
 	//REGISTER disp_scl_reg_7
 	UINT32 m_nscl_hor_delta_phase      : 20;
-	UINT32                             : 12;
+	UINT32: 12;
 
 
 	//REGISTER disp_scl_reg_8
 	UINT32 m_nscl_ver_delta_phase      : 20;
-	UINT32                             : 12;
+	UINT32: 12;
 
 
 	//REGISTER disp_scl_reg_9
@@ -179,8 +177,7 @@ typedef union
 
 	} b;
 
-	struct
-	{
+	struct {
 	UINT32 disp_scl_reg_0;
 	UINT32 disp_scl_reg_1;
 	UINT32 disp_scl_reg_2;
@@ -216,7 +213,7 @@ typedef union
 	UINT32 disp_scl_reg_32;
 	} v;
 
-}SCALER_X_REG;
+} SCALER_X_REG;
 
 #endif
 

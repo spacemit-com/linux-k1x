@@ -15,7 +15,8 @@
 #include "../spacemit_cmdlist.h"
 #include "saturn_fbcmem.h"
 
-static int get_fbc_block_size_by_modifier(uint64_t modifier, u32* out_fbc_block_size) {
+static int get_fbc_block_size_by_modifier(uint64_t modifier, u32 *out_fbc_block_size)
+{
 	int ret_val = 0;
 	uint64_t super_block_size = modifier & AFBC_FORMAT_MOD_BLOCK_SIZE_MASK;
 
@@ -31,7 +32,8 @@ static int get_fbc_block_size_by_modifier(uint64_t modifier, u32* out_fbc_block_
 	return ret_val;
 }
 
-static bool is_bpp32_in_fbc_mem_cal(uint32_t drm_4cc_fmt) {
+static bool is_bpp32_in_fbc_mem_cal(uint32_t drm_4cc_fmt)
+{
 	bool is_taken_as_bpp32 = false;
 	const struct drm_format_info *info = NULL;
 
@@ -52,7 +54,8 @@ static bool is_bpp32_in_fbc_mem_cal(uint32_t drm_4cc_fmt) {
 	return is_taken_as_bpp32;
 }
 
-static u32 adjust_afbc_layer_mem_size(u8 rdma_work_mode, u32 drm_4cc_fmt, u32 fbc_block_size, bool rot_90_or_270, u32 fbcmem_size) {
+static u32 adjust_afbc_layer_mem_size(u8 rdma_work_mode, u32 drm_4cc_fmt, u32 fbc_block_size, bool rot_90_or_270, u32 fbcmem_size)
+{
 	u32 ret_size = fbcmem_size;
 	bool is_bpp_32 = is_bpp32_in_fbc_mem_cal(drm_4cc_fmt);
 
@@ -66,7 +69,8 @@ static u32 adjust_afbc_layer_mem_size(u8 rdma_work_mode, u32 drm_4cc_fmt, u32 fb
 	return ret_size;
 }
 
-int get_raw_data_plane_rdma_mem_size(u32 drm_4cc_fmt, bool rot_90_or_270, u32 plane_crop_width, u32* output_mem_size) {
+int get_raw_data_plane_rdma_mem_size(u32 drm_4cc_fmt, bool rot_90_or_270, u32 plane_crop_width, u32 *output_mem_size)
+{
 	u8 index = 0;
 	u32 ret_mem_size = 0;
 	u32 data_plane_mem_size[3] = {0}; //max 3 plane, YUV data
@@ -82,7 +86,7 @@ int get_raw_data_plane_rdma_mem_size(u32 drm_4cc_fmt, bool rot_90_or_270, u32 pl
 			DRM_ERROR("FBC_MEM: not support format %d\n", drm_4cc_fmt);
 			return -1;
 		}
-		if (info->num_planes == 1 && info->is_yuv == false) {
+		if (info->num_planes == 1) {
 			data_plane_mem_size[0] = plane_crop_width * info->cpp[0];
 		} else if (info->num_planes >= 2 && info->is_yuv) {
 			data_plane_mem_size[0] = plane_crop_width * info->cpp[0];
@@ -111,8 +115,9 @@ int get_raw_data_plane_rdma_mem_size(u32 drm_4cc_fmt, bool rot_90_or_270, u32 pl
 EXPORT_SYMBOL(get_raw_data_plane_rdma_mem_size);
 
 int get_afbc_data_plane_min_rdma_mem_size(u8 rdma_work_mode, u32 drm_4cc_fmt,
-		u32 crop_start_x, u32 crop_start_y, u32 crop_width, u32 crop_height,
-		u32 fbc_block_size, bool rot_90_or_270, u8 min_lines, u32* output_mem_size) {
+			   u32 crop_start_x, u32 crop_start_y, u32 crop_width, u32 crop_height,
+			   u32 fbc_block_size, bool rot_90_or_270, u8 min_lines, u32 *output_mem_size)
+{
 	bool is_bpp_32 = false;
 	uint32_t ret_mem_size = 0;
 	uint32_t crop_start_align = 0;
@@ -168,7 +173,7 @@ int get_afbc_data_plane_min_rdma_mem_size(u8 rdma_work_mode, u32 drm_4cc_fmt,
 }
 EXPORT_SYMBOL(get_afbc_data_plane_min_rdma_mem_size);
 
-void saturn_write_fbcmem_regs(struct drm_plane_state *state, u32 rdma_id,
+void inline saturn_write_fbcmem_regs(struct drm_plane_state *state, u32 rdma_id,
 				     u32 module_base, volatile RDMA_PATH_X_REG *rdma_regs)
 {
 	struct drm_crtc_state *crtc_state = state->crtc->state;
@@ -181,10 +186,9 @@ void saturn_write_fbcmem_regs(struct drm_plane_state *state, u32 rdma_id,
 
 	write_to_cmdlist(priv, RDMA_PATH_X_REG, module_base, FBC_MEM_SIZE, map << 28 | start << 16 | size);
 
-	return;
 }
 
-int saturn_cal_layer_fbcmem_size(struct drm_plane *plane, \
+int saturn_cal_layer_fbcmem_size(struct drm_plane *plane,
 				   struct drm_plane_state *state)
 {
 	int ret = 0;
@@ -227,7 +231,7 @@ int saturn_cal_layer_fbcmem_size(struct drm_plane *plane, \
 	return ret;
 }
 
-int saturn_adjust_rdma_fbcmem(struct spacemit_hw_device *hwdev, \
+int saturn_adjust_rdma_fbcmem(struct spacemit_hw_device *hwdev,
 				     struct spacemit_dpu_rdma *rdmas)
 {
 	int ret = -1;
@@ -235,12 +239,12 @@ int saturn_adjust_rdma_fbcmem(struct spacemit_hw_device *hwdev, \
 	u8 sec_fbcmem_index = 0;
 	u32 pri_fbcmem_size = 0;
 	u32 sec_fbcmem_size = 0;
-	u32* fbc_mems_left = NULL;
+	u32 *fbc_mems_left = NULL;
 	u32 cur_rdma_fbcmem_size = 0;
 	u8 rdma_nums = hwdev->rdma_nums;
 	bool pre_odd_rdma_use_shared_fbc_mem = false;
 
-	struct spacemit_dpu_fbcmem * fbcmem = NULL;
+	struct spacemit_dpu_fbcmem *fbcmem = NULL;
 	for (index = 0; index < rdma_nums; index++) {
 		fbcmem = &(rdmas[index].fbcmem);
 		DRM_DEBUG("input rdmas[%u/%u]: mode = %d, start = %d, size = %d, map = %d\n",

@@ -13,7 +13,6 @@
 #include <drm/drm_color_mgmt.h>
 #include <linux/component.h>
 #include <linux/dma-mapping.h>
-#include <linux/minmax.h>
 #include "spacemit_cmdlist.h"
 #include "spacemit_dmmu.h"
 #include "spacemit_dpu.h"
@@ -79,7 +78,7 @@ static int spacemit_plane_check_rdma(const struct spacemit_hw_rdma *rdma, u32 rd
 	return 0;
 }
 
-static int spacemit_plane_atomic_check_hdr_coefs (struct drm_plane *plane,
+static int spacemit_plane_atomic_check_hdr_coefs(struct drm_plane *plane,
 					  struct drm_plane_state *state)
 {
 	struct spacemit_plane_state *apstate = to_spacemit_plane_state(state);
@@ -90,12 +89,12 @@ static int spacemit_plane_atomic_check_hdr_coefs (struct drm_plane *plane,
 	int *coef_data;
 	int n = 0;
 
-	if ((apstate->hdr_coefs_blob_prop)){
+	if ((apstate->hdr_coefs_blob_prop)) {
 		blob = apstate->hdr_coefs_blob_prop;
 		coef_data = (int *)blob->data;
 
-		for (n = 0; n < size; n++){
-			if ((coef_data[n] > 65535) || (coef_data[n] < 0)){
+		for (n = 0; n < size; n++) {
+			if ((coef_data[n] > 65535) || (coef_data[n] < 0)) {
 				DRM_ERROR("HDR coef is invalid %d\n", coef_data[n]);
 				return -EINVAL;
 			}
@@ -105,7 +104,7 @@ static int spacemit_plane_atomic_check_hdr_coefs (struct drm_plane *plane,
 	return 0;
 }
 
-static int spacemit_plane_atomic_check_scale_coefs (struct drm_plane *plane,
+static int spacemit_plane_atomic_check_scale_coefs(struct drm_plane *plane,
 					  struct drm_plane_state *state)
 {
 	struct spacemit_plane_state *apstate = to_spacemit_plane_state(state);
@@ -116,12 +115,12 @@ static int spacemit_plane_atomic_check_scale_coefs (struct drm_plane *plane,
 	int *coef_data;
 	int n = 0;
 
-	if ((apstate->scale_coefs_blob_prop)){
+	if ((apstate->scale_coefs_blob_prop)) {
 		blob = apstate->scale_coefs_blob_prop;
 		coef_data = (int *)blob->data;
 
-		for (n = 0; n < size; n++){
-			if ((coef_data[n] > 32766) || (coef_data[n] < -32767)){
+		for (n = 0; n < size; n++) {
+			if ((coef_data[n] > 32766) || (coef_data[n] < -32767)) {
 				DRM_ERROR("scale coef is invalid %d\n", coef_data[n]);
 				return -EINVAL;
 			}
@@ -152,6 +151,8 @@ static int spacemit_plane_atomic_check(struct drm_plane *plane,
 
 	dpu = crtc_to_dpu(state->crtc);
 	trace_spacemit_plane_atomic_check(dpu->dev_id);
+
+	DRM_DEBUG("%s() type %d\n", __func__, dpu->type);
 
 	src_x = state->src_x >> 16;
 	src_y = state->src_y >> 16;
@@ -211,18 +212,18 @@ static int spacemit_plane_atomic_check(struct drm_plane *plane,
 			return -EINVAL;
 		}
 
-		if(dpu->core->calc_plane_mclk_bw(plane, state)) {
+		if (dpu->core->calc_plane_mclk_bw(plane, state)) {
 			DRM_INFO("plane:%d unsupported mclk or bandwidth\n", state->zpos);
 			return -EINVAL;
 		}
 	}
 
-	if (spacemit_plane_atomic_check_hdr_coefs(plane, state)){
+	if (spacemit_plane_atomic_check_hdr_coefs(plane, state)) {
 		DRM_ERROR("The value of hdr coef is invalid\n");
 		return -EINVAL;
 	}
 
-	if (spacemit_plane_atomic_check_scale_coefs(plane, state)){
+	if (spacemit_plane_atomic_check_scale_coefs(plane, state)) {
 		DRM_ERROR("The value of scale coef is invalid\n");
 		return -EINVAL;
 	}
@@ -258,82 +259,8 @@ static void spacemit_plane_atomic_update(struct drm_plane *plane,
 	struct spacemit_hw_device *hwdev = priv->hwdev;
 	u32 rdma_id = spacemit_pstate->rdma_id;
 
-	struct drm_crtc *dpu_crtc = &dpu->crtc;
-	struct drm_display_mode *mode = NULL;
-	u32 hdisplay;
-	u32 vdisplay;
-	u32 src_x, src_y, src_w, src_h;
-	u32 crtc_x, crtc_y, crtc_w, crtc_h;
-
-	DRM_DEBUG("%s()\n", __func__);
+	DRM_DEBUG("%s() type %d\n", __func__, dpu->type);
 	trace_spacemit_plane_atomic_update(dpu->dev_id);
-
-	mode = &dpu_crtc->mode;
-	hdisplay = mode->hdisplay;
-	vdisplay = mode->vdisplay;
-
-	src_w = plane->state->src_w >> 16;
-	src_h = plane->state->src_h >> 16;
-	src_x = plane->state->src_x >> 16;
-	src_y = plane->state->src_y >> 16;
-
-	crtc_w = plane->state->crtc_w;
-	crtc_h = plane->state->crtc_h;
-	crtc_x = plane->state->crtc_x;
-	crtc_y = plane->state->crtc_y;
-
-	spacemit_pstate->screen_width = hdisplay;
-	spacemit_pstate->screen_height = vdisplay;
-
-	if ((plane->type == DRM_PLANE_TYPE_CURSOR) && ((crtc_x + crtc_w) > hdisplay)) {
-
-		if ((crtc_x > (hdisplay - crtc_w)) && (crtc_x <= (hdisplay - ((crtc_w * 3) / 4)))) {
-			spacemit_pstate->src_crop_x = src_x;
-			spacemit_pstate->src_crop_y = src_y;
-			spacemit_pstate->src_crop_w = ((src_w * 3) / 4);
-			spacemit_pstate->src_crop_h = src_h;
-			spacemit_pstate->dst_crop_x = crtc_x;
-			spacemit_pstate->dst_crop_y = crtc_y;
-			spacemit_pstate->dst_crop_w = ((crtc_w * 3) / 4);
-			spacemit_pstate->dst_crop_h = crtc_h;
-			spacemit_pstate->is_crop = true;
-		} else if ((crtc_x > (hdisplay - ((crtc_w * 3) / 4))) && (crtc_x <= (hdisplay - (crtc_w  / 2)))) {
-			spacemit_pstate->src_crop_x = src_x;
-			spacemit_pstate->src_crop_y = src_y;
-			spacemit_pstate->src_crop_w = (src_w / 2);
-			spacemit_pstate->src_crop_h = src_h;
-			spacemit_pstate->dst_crop_x = crtc_x;
-			spacemit_pstate->dst_crop_y = crtc_y;
-			spacemit_pstate->dst_crop_w = (crtc_w / 2);
-			spacemit_pstate->dst_crop_h = crtc_h;
-			spacemit_pstate->is_crop = true;
-		} else if ((crtc_x > (hdisplay - (crtc_w / 2))) && (crtc_x <= (hdisplay - (crtc_w / 4)))){
-			spacemit_pstate->src_crop_x = src_x;
-			spacemit_pstate->src_crop_y = src_y;
-			spacemit_pstate->src_crop_w = (src_w / 4);
-			spacemit_pstate->src_crop_h = src_h;
-			spacemit_pstate->dst_crop_x = crtc_x;
-			spacemit_pstate->dst_crop_y = crtc_y;
-			spacemit_pstate->dst_crop_w = (crtc_w / 4);
-			spacemit_pstate->dst_crop_h = crtc_h;
-			spacemit_pstate->is_crop = true;
-		} else if ((crtc_x > (hdisplay - (crtc_w / 4))) && (crtc_x <= hdisplay)) {
-			spacemit_pstate->src_crop_x = src_x;
-			spacemit_pstate->src_crop_y = src_y;
-			spacemit_pstate->src_crop_w = (src_w / 4);
-			spacemit_pstate->src_crop_h = src_h;
-			spacemit_pstate->dst_crop_x = hdisplay - (crtc_w / 4);
-			spacemit_pstate->dst_crop_y = crtc_y;
-			spacemit_pstate->dst_crop_w = (crtc_w / 4);
-			spacemit_pstate->dst_crop_h = crtc_h;
-			spacemit_pstate->is_crop = true;
-		} else {
-			spacemit_pstate->is_crop = false;
-		}
-
-	} else {
-		spacemit_pstate->is_crop = false;
-	}
 
 	spacemit_plane_update_hw_channel(plane);
 
@@ -354,7 +281,7 @@ static void spacemit_plane_atomic_update(struct drm_plane *plane,
 			return;
 		}
 		tbu_id = !spacemit_pstate->right_image ? (rdma_id * 2) : (rdma_id * 2 + 1);
-		ret = spacemit_dmmu_map(plane, &spacemit_pstate->mmu_tbl, tbu_id, false);
+		ret = spacemit_dmmu_map(plane->state->fb, &spacemit_pstate->mmu_tbl, tbu_id);
 		if (!ret)
 			cmdlist_regs_packing(plane);
 		else
@@ -365,8 +292,16 @@ static void spacemit_plane_atomic_update(struct drm_plane *plane,
 static void spacemit_plane_atomic_disable(struct drm_plane *plane,
 				     struct drm_atomic_state *state)
 {
-	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state, plane);
+	struct drm_plane_state *old_state;
 	DRM_DEBUG("%s()\n", __func__);
+
+	if (state)
+		old_state = drm_atomic_get_old_plane_state(state, plane);
+	else
+		old_state = NULL;
+
+	if ((old_state != NULL) && (!old_state->crtc))
+		return;
 
 	spacemit_dmmu_unmap(plane);
 	spacemit_plane_disable_hw_channel(plane, old_state);
@@ -405,7 +340,6 @@ static void spacemit_plane_reset(struct drm_plane *plane)
 		s->state.zpos = hwdev->plane_nums - p->hw_pid - 1;
 		s->rdma_id = RDMA_INVALID_ID;
 		s->is_offline = 1;
-		s->is_crop = false;
 		s->scaler_id = SCALER_INVALID_ID;
 	}
 }
@@ -439,18 +373,6 @@ spacemit_plane_atomic_duplicate_state(struct drm_plane *plane)
 	s->scaler_id = SCALER_INVALID_ID;
 	s->use_scl = false;
 	s->fbcmem_size = 0;
-
-	s->is_crop = old_state->is_crop;
-	s->src_crop_x = old_state->src_crop_x;
-	s->src_crop_y = old_state->src_crop_y;
-	s->src_crop_w = old_state->src_crop_w;
-	s->src_crop_h = old_state->src_crop_h;
-	s->dst_crop_x = old_state->dst_crop_x;
-	s->dst_crop_y = old_state->dst_crop_y;
-	s->dst_crop_w = old_state->dst_crop_w;
-	s->dst_crop_h = old_state->dst_crop_h;
-	s->screen_width = old_state->screen_width;
-	s->screen_height = old_state->screen_height;
 
 	if (s->hdr_coefs_blob_prop)
 		drm_property_blob_get(s->hdr_coefs_blob_prop);
@@ -545,15 +467,13 @@ static int spacemit_plane_atomic_get_property(struct drm_plane *plane,
 		*val = s->rdma_id;
 	else if (property == p->solid_color_property)
 		*val = s->solid_color;
-	else if (property == p->hdr_coef_property){
+	else if (property == p->hdr_coef_property) {
 		if (s->hdr_coefs_blob_prop)
 			*val = (s->hdr_coefs_blob_prop) ? s->hdr_coefs_blob_prop->base.id : 0;
-	}
-	else if (property == p->scale_coef_property){
+	} else if (property == p->scale_coef_property) {
 		if (s->scale_coefs_blob_prop)
 			*val = (s->scale_coefs_blob_prop) ? s->scale_coefs_blob_prop->base.id : 0;
-	}
-	else {
+	} else {
 		DRM_ERROR("property %s is invalid\n", property->name);
 		return -EINVAL;
 	}
@@ -572,7 +492,7 @@ static const char * const color_range_name[] = {
 	[DRM_COLOR_YCBCR_LIMITED_RANGE] = "YCbCr limited range",
 };
 
-static int spacemit_drm_plane_create_color_properties(struct drm_plane *plane,
+int spacemit_drm_plane_create_color_properties(struct drm_plane *plane,
 				      u32 supported_encodings,
 				      u32 supported_ranges,
 				      enum drm_color_encoding default_encoding,
@@ -580,7 +500,8 @@ static int spacemit_drm_plane_create_color_properties(struct drm_plane *plane,
 {
 	struct drm_device *dev = plane->dev;
 	struct drm_property *prop;
-	struct drm_prop_enum_list enum_list[MAX((int)DRM_COLOR_ENCODING_MAX, (int)DRM_COLOR_RANGE_MAX)];
+	struct drm_prop_enum_list enum_list[max_t(int, DRM_COLOR_ENCODING_MAX,
+						       DRM_COLOR_RANGE_MAX)];
 	int i, len;
 
 	if (WARN_ON(supported_encodings == 0 ||
@@ -695,7 +616,7 @@ static int spacemit_plane_create_properties(struct spacemit_plane *p, int index)
 					BIT(DRM_COLOR_YCBCR_LIMITED_RANGE) | \
 					BIT(DRM_COLOR_YCBCR_FULL_RANGE),
 					DRM_COLOR_YCBCR_BT601, DRM_COLOR_YCBCR_LIMITED_RANGE);
-	if(ret)
+	if (ret)
 		DRM_ERROR("Failed to create color properties %d\n", ret);
 
 	return 0;
@@ -734,6 +655,8 @@ struct drm_plane *spacemit_plane_init(struct drm_device *drm,
 	u8 n_rdmas = hwdev->rdma_nums;
 	u32 plane_crtc_mask;
 
+	DRM_DEBUG("%s() type %d\n", __func__, dpu->type);
+
 	trace_spacemit_plane_init(dpu->dev_id);
 	if (n_fbcmems * 2 != n_rdmas) {
 		DRM_ERROR("Unmatched rdma and fbcmem numbers, \
@@ -762,13 +685,9 @@ struct drm_plane *spacemit_plane_init(struct drm_device *drm,
 		for (j = 0; j < n_formats; j++)
 			formats[j] = hwdev->formats[j].format;
 
-		// plane_type = (i < priv->num_pipes)
-		// 	   ? DRM_PLANE_TYPE_PRIMARY
-		// 	   : DRM_PLANE_TYPE_OVERLAY;
-
-		plane_type = (i < priv->num_pipes) ? DRM_PLANE_TYPE_PRIMARY :
-			   (i == priv->num_pipes) ? DRM_PLANE_TYPE_CURSOR :
-			   DRM_PLANE_TYPE_OVERLAY;
+		plane_type = (i < priv->num_pipes)
+		 	   ? DRM_PLANE_TYPE_PRIMARY
+		 	   : DRM_PLANE_TYPE_OVERLAY;
 
 		err = drm_universal_plane_init(drm, &p->plane, plane_crtc_mask,
 					       &spacemit_plane_funcs, formats,
@@ -783,10 +702,13 @@ struct drm_plane *spacemit_plane_init(struct drm_device *drm,
 
 		spacemit_plane_create_properties(p, i);
 
+		p->dev_id = dpu->dev_id;
 		p->hwdev = hwdev;
 		p->hw_pid = n_planes - i - 1;
 		if (i == 0)
 			primary = &p->plane;
+
+		DRM_DEBUG("%s() type %d i %d hw_pid %d dev_id %d\n", __func__, dpu->type, i, p->hw_pid, dpu->dev_id);
 	}
 
 	kfree(formats);

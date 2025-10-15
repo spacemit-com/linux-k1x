@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2023 Spacemit Co., Ltd.
  *
@@ -113,12 +113,6 @@ typedef uint32_t INT32;
 #define DSCB3_BASE_ADDR (OUTCTRL3_BASE_ADDR + 0x8100)
 #define OUTCTRL_BASE_ADDR(ctrl_id) (OUTCTRL0_BASE_ADDR + OUTCTRL_SIZE * ctrl_id)
 
-#define WB_SIZE 0x400
-#define WB0_TOP_BASE_ADDR 0x29000
-#define WB0_SCALER_BASE_ADDR (WB0_TOP_BASE_ADDR + 0x200)
-#define WB1_TOP_BASE_ADDR (WB0_TOP_BASE_ADDR + WB_SIZE)
-#define WB1_SCALER_BASE_ADDR (WB1_TOP_BASE_ADDR + 0x200)
-
 #define SATURN_SIZE 0x2A000
 
 #include "cmdlist.h"
@@ -133,7 +127,6 @@ typedef uint32_t INT32;
 #include "outctrl_proc_x.h"
 #include "rdma_path_x.h"
 #include "scaler_x.h"
-#include "wb_top.h"
 #include "prepipe_layer_proc_x.h"
 
 #endif

@@ -6,14 +6,12 @@
 
 #include <linux/device.h>
 #include <linux/module.h>
-#include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
-#include <linux/platform_device.h>
 #include <linux/uaccess.h>
 #include <linux/fs.h>
-#include <drm/drm_of.h>
+#include <linux/of.h>
 #include "spacemit_lib.h"
 
 struct bmp_header {
@@ -160,49 +158,6 @@ int disp_ops_register(struct ops_entry *entry, struct list_head *head)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(disp_ops_register);
-
-struct device *spacemit_disp_pipe_get_by_port(struct device *dev, int port)
-{
-	struct device_node *np = dev->of_node;
-	struct device_node *endpoint;
-	struct device_node *remote_node;
-	struct platform_device *remote_pdev;
-
-	endpoint = of_graph_get_endpoint_by_regs(np, port, 0);
-	if (!endpoint) {
-		DRM_ERROR("%s/port%d/endpoint0 was not found\n",
-			  np->full_name, port);
-		return NULL;
-	}
-
-	remote_node = of_graph_get_remote_port_parent(endpoint);
-	if (!remote_node) {
-		DRM_ERROR("device node was not found by endpoint0\n");
-		return NULL;
-	}
-
-	remote_pdev = of_find_device_by_node(remote_node);
-	if (remote_pdev == NULL) {
-		DRM_ERROR("find %s platform device failed\n",
-			  remote_node->full_name);
-		return NULL;
-	}
-
-	return &remote_pdev->dev;
-}
-EXPORT_SYMBOL_GPL(spacemit_disp_pipe_get_by_port);
-
-struct device *spacemit_disp_pipe_get_input(struct device *dev)
-{
-	return spacemit_disp_pipe_get_by_port(dev, 1);
-}
-EXPORT_SYMBOL_GPL(spacemit_disp_pipe_get_input);
-
-struct device *spacemit_disp_pipe_get_output(struct device *dev)
-{
-	return spacemit_disp_pipe_get_by_port(dev, 0);
-}
-EXPORT_SYMBOL_GPL(spacemit_disp_pipe_get_output);
 
 /*
  * copy from drm opensource, change name from drm_atomic_replace_property_blob_from_id

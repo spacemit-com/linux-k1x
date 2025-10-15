@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2023 Spacemit Co., Ltd.
  *
@@ -30,9 +30,6 @@ int dump_bmp32(const char *p, u32 width, u32 height,
 void *disp_ops_attach(const char *str, struct list_head *head);
 int disp_ops_register(struct ops_entry *entry, struct list_head *head);
 
-struct device *spacemit_disp_pipe_get_by_port(struct device *dev, int port);
-struct device *spacemit_disp_pipe_get_input(struct device *dev);
-struct device *spacemit_disp_pipe_get_output(struct device *dev);
 int spacemit_atomic_replace_property_blob_from_id(struct drm_device *dev,
 					 struct drm_property_blob **blob,
 					 uint64_t blob_id,

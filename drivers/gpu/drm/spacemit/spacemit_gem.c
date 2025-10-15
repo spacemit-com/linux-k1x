@@ -7,9 +7,9 @@
 #include <linux/dma-mapping.h>
 #include <linux/dma-buf.h>
 #include <linux/dma-map-ops.h>
-#include <linux/vmalloc.h>
 #include <drm/drm_prime.h>
 #include <drm/drm_gem_dma_helper.h>
+#include <linux/vmalloc.h>
 
 #include "spacemit_gem.h"
 #include "spacemit_dmmu.h"
@@ -150,7 +150,7 @@ static void spacemit_gem_sysmem_free(struct spacemit_gem_object *spacemit_obj)
 #if IS_ENABLED(CONFIG_GKI_FIX_WORKAROUND)
 			nop();
 #else
- 			dma_release_from_contiguous(drm->dev, page, sg->length >> PAGE_SHIFT);
+			dma_release_from_contiguous(drm->dev, page, sg->length >> PAGE_SHIFT);
 #endif
 		else
 			__free_pages(page, compound_order(page));
@@ -227,7 +227,7 @@ static struct sg_table *spacemit_gem_prime_get_sg_table(struct drm_gem_object *g
 	return __dup_sg_table(spacemit_obj->sgt);
 }
 
-static int spacemit_gem_prime_vmap(struct drm_gem_object *gem_obj, struct iosys_map *map)
+int spacemit_gem_prime_vmap(struct drm_gem_object *gem_obj, struct iosys_map *map)
 {
 	struct spacemit_gem_object *spacemit_obj = to_spacemit_obj(gem_obj);
 	struct sg_page_iter piter;
@@ -253,7 +253,7 @@ static int spacemit_gem_prime_vmap(struct drm_gem_object *gem_obj, struct iosys_
 		WARN_ON(tmp - pages >= npages);
 		*(tmp++) = sg_page_iter_page(&piter);
 	}
-	vaddr = vmap(pages, npages, VM_MAP, pgprot);
+	vaddr = vmap(pages, npages, 0, pgprot);
 	kvfree(pages);
 
 	if (!vaddr)
@@ -272,7 +272,7 @@ vmap_fail:
 	return -ENOMEM;
 }
 
-static void spacemit_gem_prime_vunmap(struct drm_gem_object *obj, struct iosys_map *map)
+void spacemit_gem_prime_vunmap(struct drm_gem_object *obj, struct iosys_map *map)
 {
 	struct spacemit_gem_object *spacemit_obj = to_spacemit_obj(obj);
 
